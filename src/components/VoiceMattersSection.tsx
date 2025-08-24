@@ -10,7 +10,7 @@ const data = {
     title: "Psychiatrists",
     headerTitle: "MEDICAL EXPERT CARE",
     description: `Consult with licensed psychiatrists for diagnostic clarity, medication management, and integrated treatment planning for complex mental health conditions. Evidence-based, outcome-focused, confidential support.`,
-    icon: "\ud83e\uddea",
+  icon: "🩺",
     href: "/services/psychiatrists",
     comingSoon: false,
   },
@@ -19,7 +19,7 @@ const data = {
     title: "Psychologists",
     headerTitle: "THERAPEUTIC SUPPORT",
     description: `Access structured psychological interventions, assessments, and therapy modalities tailored to your goals1helping you build resilience, insight, and sustainable wellbeing.`,
-    icon: "\ud83e\udde0",
+  icon: "🧠",
     href: "/services/psychologists",
     comingSoon: false,
   },
@@ -28,7 +28,7 @@ const data = {
     title: "Listening Circle",
     headerTitle: "EMPATHETIC PRESENCE",
     description: `Choose from three compassionate listening tiers for safe, judgement-free emotional expression, real-time relief, and human connection when you need it most.`,
-    icon: "\ud83c\udfa7",
+  icon: "🎧",
     href: "/services/listening",
     comingSoon: false,
   },
@@ -37,7 +37,7 @@ const data = {
     title: "Counselling Plans",
     headerTitle: "GUIDED PROGRESS",
     description: `Curated counselling focus areas matched to qualified professionals1select a specialization, explore aligned practitioners, and progress through a structured care pathway.`,
-    icon: "\ud83c\udfaf",
+  icon: "📋",
     href: "/services/counselling",
     comingSoon: false,
   },
@@ -46,7 +46,7 @@ const data = {
     title: "Employee Wellbeing",
     headerTitle: "WORKPLACE MENTAL HEALTH",
     description: `Organization-wide resilience, psychological safety, and mental health enablement programs. Analytics, workshops, and care routinglaunching soon. Register interest now.`,
-    icon: "\ud83c\udfe2",
+  icon: "🏢",
     href: "/workplace",
     comingSoon: true,
   },
@@ -55,7 +55,7 @@ const data = {
     title: "School Wellbeing",
     headerTitle: "STUDENT SUPPORT",
     description: `Holistic student mental health, SEL skill-building, and early intervention pathways for academic ecosystems. Coming soonbe first to know when we onboard institutions.`,
-    icon: "\ud83c\udfeb",
+  icon: "🏫",
     href: "/schools",
     comingSoon: true,
   },
@@ -135,7 +135,7 @@ export default function VoiceMattersSection() {
             <h2 className="font-medium text-4xl lg:text-5xl text-[#EFEDE1] mb-12 leading-tight">
               <span className="text-[#B7E3FF]">Your </span>
               <span className="text-[#B7E3FF] font-semibold">VOICE</span>
-              <span className="text-[#EFEDE1]"> matters\u2014</span>
+              <span className="text-[#EFEDE1]"> matters—</span>
               <br />
               <span className="text-[#B7E3FF]">let's </span>
               <span className="text-[#B7E3FF] font-semibold italic">TALK.</span>
@@ -158,7 +158,7 @@ export default function VoiceMattersSection() {
                 {/* Content Section */}
                 <div className="w-full md:w-1/2 flex flex-col justify-center p-8 md:p-12 lg:p-16 bg-gradient-to-br from-[#EFEDE1] to-[#F8F6F0]">
                   <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 0.6 }} className="flex items-center mb-6">
-                    <div className="text-5xl mr-5 p-3 bg-white rounded-2xl shadow-md">{data[selected].icon}</div>
+                    <div className="text-5xl mr-5 p-3 bg-white rounded-2xl shadow-md"><span role="img" aria-label={data[selected].title}>{data[selected].icon}</span></div>
                     <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#2D3319] leading-tight">{data[selected].title}</h3>
                   </motion.div>
 
