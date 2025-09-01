@@ -29,7 +29,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Navbar />
-        {children}
+        {/* Offset all pages for the fixed navbar height (published via --nav-h in Navbar) */}
+        <main style={{ paddingTop: "var(--nav-h, 80px)" }} className="relative">
+          {children}
+        </main>
       </body>
     </html>
   );

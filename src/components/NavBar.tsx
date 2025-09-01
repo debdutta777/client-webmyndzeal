@@ -1,8 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
+
+
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+
+
+
 
 const navItems = [
   { name: "Home", path: "/" },
@@ -16,14 +21,15 @@ const serviceLinks = [
   { name: 'Psychologists', href: '/services/psychologists', description: 'Therapeutic support & structured interventions.' },
   { name: 'Listening Circle', href: '/services/listening', description: 'Three empathetic listening pathways.' },
   { name: 'Counselling Plans', href: '/services/counselling', description: 'Match a focus area with a counsellor.' },
-  { name: 'Employee Wellbeing', href: '/workplace', description: 'Corporate mental health & resilience (coming soon).' },
-  { name: 'School Wellbeing', href: '/schools', description: 'Student wellbeing & SEL (coming soon).' },
+  { name: 'Employee Wellbeing', href: '/workplace', description: 'Corporate mental health & resilience .' },
+  { name: 'School Wellbeing', href: '/schools', description: 'Student wellbeing & SEL.' },
 ];
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [servicesDropdown, setServicesDropdown] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
 
   const navListVariants = {
     hidden: {},
@@ -57,6 +63,17 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // publish navbar height to a CSS variable so pages can offset themselves
+  useEffect(() => {
+    const setNavHeight = () => {
+      const h = navRef.current?.offsetHeight || 80;
+      document.documentElement.style.setProperty('--nav-h', `${h}px`);
+    };
+    setNavHeight();
+    window.addEventListener('resize', setNavHeight);
+    return () => window.removeEventListener('resize', setNavHeight);
+  }, []);
+
   const scrollToSection = (sectionId: string) => {
     setIsOpen(false);
     if (!sectionId.startsWith("#")) return;
@@ -66,11 +83,10 @@ export default function Navbar() {
   };
 
   return (
-    <motion.nav
-      initial={{ y: -80 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5 }}
-      className={`fixed top-0 left-0 w-full z-40 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur border-b border-white/10 shadow-md' : 'bg-transparent'}`}
+    <nav
+      ref={navRef}
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 backdrop-blur-sm ${scrolled ? 'bg-white/95 shadow-lg' : 'bg-white/80'}`}
+      style={{ willChange: 'background-color, box-shadow' }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
@@ -85,7 +101,7 @@ export default function Navbar() {
               <motion.div key={item.name} className="relative" variants={navItemVariant} onMouseEnter={() => item.dropdown && setServicesDropdown(true)} onMouseLeave={() => item.dropdown && setServicesDropdown(false)} whileHover="hover">
                 {item.dropdown ? (
                   <>
-                    <motion.button onClick={() => setServicesDropdown(v => !v)} className={`text-sm font-medium transition-colors duration-200 ${scrolled ? 'text-gray-800' : 'text-white'}`}>
+                    <motion.button onClick={() => setServicesDropdown(v => !v)} className={`text-sm font-medium transition-colors duration-200 text-gray-800`}>
                       {item.name}
                       <svg className={`inline-block w-3 h-3 ml-2 transition-transform ${servicesDropdown ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" /></svg>
                     </motion.button>
@@ -106,9 +122,9 @@ export default function Navbar() {
                   </>
                 ) : (
                   item.path.startsWith('#') ? (
-                    <motion.button onClick={() => scrollToSection(item.path)} className={`text-sm font-medium transition-colors duration-200 ${scrolled ? 'text-gray-800' : 'text-white'}`}>{item.name}</motion.button>
+                    <motion.button onClick={() => scrollToSection(item.path)} className={`text-sm font-medium transition-colors duration-200 text-gray-800`}>{item.name}</motion.button>
                   ) : (
-                    <Link href={item.path} className={`text-sm font-medium transition-colors duration-200 ${scrolled ? 'text-gray-800' : 'text-white'}`}>{item.name}</Link>
+                    <Link href={item.path} className={`text-sm font-medium transition-colors duration-200 text-gray-800`}>{item.name}</Link>
                   )
                 )}
               </motion.div>
@@ -122,14 +138,14 @@ export default function Navbar() {
           </div>
 
           <div className="md:hidden">
-            <motion.button onClick={() => setIsOpen(v => !v)} className={`p-2 rounded-lg ${scrolled ? 'text-gray-800' : 'text-white'}`} whileTap={{ scale: 0.94 }} animate={{ rotate: isOpen ? 90 : 0 }} transition={{ type: 'spring', stiffness: 260, damping: 24 }}>
+            <motion.button onClick={() => setIsOpen(v => !v)} className={`p-2 rounded-lg text-gray-800`} whileTap={{ scale: 0.94 }} animate={{ rotate: isOpen ? 90 : 0 }} transition={{ type: 'spring', stiffness: 260, damping: 24 }}>
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </motion.button>
           </div>
         </div>
-      </div>
+  </div>
 
-      <AnimatePresence>
+  <AnimatePresence>
         {isOpen && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="md:hidden bg-white/95 backdrop-blur border-t border-white/10 z-40">
             <div className="px-4 py-6 space-y-4">
@@ -164,6 +180,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.nav>
+    </nav>
   );
 }
