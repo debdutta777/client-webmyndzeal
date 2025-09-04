@@ -13,6 +13,7 @@ const navItems = [
   { name: "Home", path: "/" },
   { name: "About", path: "#about" },
   { name: "Services", path: "#services", dropdown: true },
+  { name: "Dashboard", path: "/dashboard" },
   { name: "Contact", path: "#contact" },
 ];
 

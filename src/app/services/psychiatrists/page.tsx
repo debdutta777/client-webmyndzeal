@@ -165,7 +165,7 @@ export default function PsychiatristsServicePage() {
                       <img src={p.profile_image_url} alt={fullName} className="object-cover w-full h-full" />
                     ) : <span>⚕️</span>}
                   </div>
-                  <a href={`/psychiatrists/${p.id}`} className="text-lg font-semibold text-[#2F3E25] flex items-center gap-2 hover:underline">{fullName}{p.is_verified && <Award className="w-4 h-4 text-[#6B8E23]" />}</a>
+                  <a href={`/services/psychiatrists/${p.id}`} className="text-lg font-semibold text-[#2F3E25] flex items-center gap-2 hover:underline">{fullName}{p.is_verified && <Award className="w-4 h-4 text-[#6B8E23]" />}</a>
                   <div className="mt-2 w-full flex flex-wrap justify-center gap-2">
                     {typeof p.experience_years === 'number' && (
                       <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full shadow-sm text-[11px] whitespace-nowrap">
@@ -208,14 +208,14 @@ export default function PsychiatristsServicePage() {
                   <div className="flex flex-col gap-2 items-stretch w-1/2">
                     <button
                       className="relative overflow-hidden inline-flex justify-center items-center gap-2 bg-[#6B8E23] text-white text-xs font-medium px-3 py-2 rounded-full shadow hover:shadow-md transition group/book"
-                      onClick={() => { window.location.href = `/providers/${p.id}/slots`; }}
+                      onClick={() => { window.location.href = `/services/psychiatrists/${p.id}`; }}
                     >
-                      <span className="relative z-10">Book</span>
+                      <span className="relative z-10">Book Now</span>
                     </button>
                     <a
-                      href={`/psychiatrists/${p.id}`}
+                      href={`/services/psychiatrists/${p.id}`}
                       className="inline-flex justify-center items-center gap-2 bg-white/70 border border-[#6B8E23] text-[#466536] text-xs font-medium px-3 py-2 rounded-full hover:bg-[#F4FAF2] transition shadow-sm"
-                    >Details</a>
+                    >View Details</a>
                   </div>
                 </div>
                 <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-[#6B8E23]/5 via-transparent to-[#4682B4]/10" />

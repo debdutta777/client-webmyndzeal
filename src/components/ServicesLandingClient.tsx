@@ -54,7 +54,7 @@ export default function ServicesLandingClient() {
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-lg border border-white/50 max-w-2xl mx-auto">
             <h3 className="text-2xl font-bold text-[#2D3319] mb-4">Need Help Choosing?</h3>
             <p className="text-[#4A5D3A] mb-6 text-lg">Not sure which service is right for you? Our team can help guide you to the perfect match for your needs.</p>
-            <Link href="/book-session" className="inline-flex items-center gap-3 bg-gradient-to-r from-[#8BA872] to-[#73905B] text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"><Heart className="w-5 h-5" />Get Personalized Help</Link>
+            <Link href="/services" className="inline-flex items-center gap-3 bg-gradient-to-r from-[#8BA872] to-[#73905B] text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"><Heart className="w-5 h-5" />Explore All Services</Link>
           </div>
         </motion.div>
       </div>

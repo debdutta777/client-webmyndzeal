@@ -12,8 +12,8 @@ const tiers = [
     price: 99,
     duration: '45 minutes',
     service: 'Active Listener Support',
-    description: 'At MYNDZEAL, we are always here to listen, support, and understand you. No matter the time or situation, our compassionate listeners are available whenever you need a safe space to share your thoughts and feelings. You are never alone—we are here for you, every step of the way.',
-    href: '/book-session?focus=listener&tier=active'
+    description: 'At MYNDZEAL, we are always here to listen, support, and understand you. Our compassionate listeners are available 24*7 whenever you need a safe space to share your thoughts and feelings. You are never alone—we are here for you, every step of the way.',
+    href: '/services/listening/book?tier=active'
   },
   {
     key: 'empathetic-listeners',
@@ -22,7 +22,7 @@ const tiers = [
     duration: '45 minutes',
     service: 'Empathetic Listeners',
     description: 'Empathy is at the heart of our service. Our empathetic listeners connect with you on a deeper level, offering understanding and compassion to help you navigate your emotions.',
-    href: '/book-session?focus=listener&tier=empathetic'
+    href: '/services/listening/book?tier=empathetic'
   },
   {
     key: 'effective-communicators',
@@ -31,7 +31,7 @@ const tiers = [
     duration: '45 minutes',
     service: 'Effective Communicators',
     description: 'Our effective communicators ensure that every interaction is meaningful and constructive. They help you articulate your thoughts and feelings while providing valuable feedback.',
-    href: '/book-session?focus=listener&tier=communicators'
+    href: '/services/listening/book?tier=communicators'
   }
 ]
 
@@ -41,7 +41,10 @@ export default function ListeningCyclePage() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
           <h1 className="text-3xl md:text-5xl font-bold text-[#2D3319] mb-4 tracking-tight">Listening Circle</h1>
-          <p className="text-[#4A5D3A] max-w-2xl mx-auto font-medium">Choose the depth of support that fits your current emotional need. Each tier can later transition into counselling if required.</p>
+          <p className="text-[#4A5D3A] max-w-2xl mx-auto font-medium mb-2">Choose the depth of support that fits your current emotional need. Each tier can later transition into counselling if required.</p>
+          <div className="inline-flex items-center px-4 py-2 bg-green-50 border border-green-200 rounded-full">
+            <span className="text-green-700 font-semibold text-sm">🟢 Available 24*7 • Anonymous Support</span>
+          </div>
         </div>
         <div className="grid gap-8 md:grid-cols-3">
           {tiers.map((t, idx) => (
@@ -70,8 +73,11 @@ export default function ListeningCyclePage() {
                   <p className="text-sm font-semibold text-[#2D3319]">₹{t.price}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-white/70 border border-[#D7D5C9]">
-                  <p className="text-[10px] tracking-wide text-[#587542] font-medium mb-0.5">Service</p>
-                  <p className="text-sm font-semibold text-[#2D3319] leading-tight">{t.service}</p>
+                  <p className="text-[10px] tracking-wide text-[#587542] font-medium mb-0.5">Duration</p>
+                  <p className="text-sm font-semibold text-[#2D3319]">{t.duration} min</p>
+                </div>
+                <div className="p-2 rounded-lg bg-green-50 border border-green-200 col-span-2">
+                  <p className="text-[10px] tracking-wide text-green-700 font-medium mb-0.5 text-center">Available 24*7 • Anonymous Support</p>
                 </div>
               </div>
               <p className="text-sm text-[#4A5D3A] flex-1 mb-5 leading-relaxed">{t.description}</p>
