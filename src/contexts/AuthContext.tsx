@@ -119,10 +119,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      // Sign out of the local session (does not revoke other devices)
+      await supabase.auth.signOut({ scope: 'local' as any });
+    } catch (e) {
+      console.warn('Supabase signOut error (non-fatal):', e);
+    }
+
+    // Hard clear any lingering Supabase auth tokens (defensive)
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        if (k.startsWith('sb-') && k.endsWith('-auth-token')) keysToRemove.push(k);
+        if (k.startsWith('supabase.')) keysToRemove.push(k);
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.removeItem('redirectAfterLogin');
+    } catch (e) {
+      console.warn('Local/session storage clear failed (non-fatal):', e);
+    }
+
     setUser(null);
     setClient(null);
-    router.push('/');
+
+    // Small delay allows onAuthStateChange listeners to settle before navigating
+    setTimeout(() => {
+      // Prefer sending user to login explicitly to avoid immediate auto-redirects
+      router.push('/auth/login');
+      // Force a refresh to ensure auth state is fully reset in all client components
+      router.refresh();
+    }, 50);
   };
 
   return (

@@ -3,11 +3,8 @@
  * Test Mode Configuration
  */
 
-import crypto from 'crypto';
-
 // Razorpay Test Credentials
 export const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RDdW9qvO6iNMIW';
-export const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '86N1d0ibtUHCV3ikxnTl3HWe';
 
 // Load Razorpay script
 export const loadRazorpayScript = (): Promise<boolean> => {
@@ -20,20 +17,8 @@ export const loadRazorpayScript = (): Promise<boolean> => {
   });
 };
 
-// Verify Razorpay signature
-export const verifyRazorpaySignature = (
-  orderId: string,
-  paymentId: string,
-  signature: string
-): boolean => {
-  const text = `${orderId}|${paymentId}`;
-  const generated = crypto
-    .createHmac('sha256', RAZORPAY_KEY_SECRET)
-    .update(text)
-    .digest('hex');
-  
-  return generated === signature;
-};
+// Note: Signature verification should be done on the server side only
+// This function is removed from client-side code
 
 // Razorpay options interface
 export interface RazorpayOptions {
@@ -66,7 +51,7 @@ export interface RazorpayResponse {
 // Initialize Razorpay payment
 export const initializePayment = async (
   amount: number,
-  appointmentId: string,
+  intent: Record<string, unknown>,
   userDetails: {
     name: string;
     email: string;
@@ -76,13 +61,17 @@ export const initializePayment = async (
   onError: (error: unknown) => void
 ): Promise<void> => {
   try {
+    console.log('Initializing payment with intent:', intent, 'Amount:', amount);
+    
     // Load Razorpay script
     const loaded = await loadRazorpayScript();
     if (!loaded) {
       throw new Error('Razorpay SDK failed to load');
     }
+    console.log('Razorpay script loaded successfully');
 
     // Create order via API
+    console.log('Creating order via API...');
     const orderResponse = await fetch('/api/payments/create-order', {
       method: 'POST',
       headers: {
@@ -90,15 +79,18 @@ export const initializePayment = async (
       },
       body: JSON.stringify({
         amount,
-        appointmentId,
+        intent,
       }),
     });
 
     if (!orderResponse.ok) {
-      throw new Error('Failed to create payment order');
+      const errorData = await orderResponse.json().catch(() => ({}));
+      console.error('Order creation failed:', errorData);
+      throw new Error(errorData.error || 'Failed to create payment order');
     }
 
     const orderData = await orderResponse.json();
+    console.log('Order created successfully:', orderData);
 
     // Initialize Razorpay
     const options: RazorpayOptions = {
@@ -119,16 +111,26 @@ export const initializePayment = async (
       },
       modal: {
         ondismiss: () => {
+          console.log('Payment cancelled by user');
           onError(new Error('Payment cancelled by user'));
         },
       },
     };
 
+    console.log('Opening Razorpay checkout with options:', options);
+    
+    // Check if Razorpay is available
+    if (!(window as any).Razorpay) {
+      throw new Error('Razorpay SDK not available on window object');
+    }
+    
     // Open Razorpay checkout
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const razorpay = new (window as any).Razorpay(options);
     razorpay.open();
+    console.log('Razorpay checkout opened');
   } catch (error) {
+    console.error('Payment initialization error:', error);
     onError(error);
   }
 };

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import RequireAuth from '@/components/RequireAuth';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { 
   Calendar, 
   Clock, 
@@ -75,16 +76,93 @@ export default function ClientDashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const { client } = useAuth();
 
-  // TODO: Fetch from Supabase
-  const [appointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [notifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const stats = {
-    totalSessions: appointments.length,
-    upcomingSessions: appointments.filter(a => a.status === 'scheduled').length,
-    completedSessions: appointments.filter(a => a.status === 'completed').length,
-    totalSpent: appointments.filter(a => a.status === 'completed').reduce((sum, a) => sum + a.fee, 0)
-  };
+  // Fetch appointments for the logged-in client
+  useEffect(() => {
+    const load = async () => {
+      if (!client?.id) return;
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('id, appointment_date, start_time, duration, provider_id, slot_id, status, payment_status, amount, session_mode, client_message')
+          .eq('client_id', client.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const mapped: Appointment[] = (data || []).map((a: any) => {
+          // Map DB statuses to UI statuses
+          const uiStatus: Appointment['status'] = ((): Appointment['status'] => {
+            switch (a.status) {
+              case 'completed':
+                return 'completed';
+              case 'cancelled':
+                return 'cancelled';
+              case 'no_show':
+                return 'no_show';
+              case 'in_progress':
+                return 'in_progress';
+              case 'confirmed': // treat confirmed as upcoming for UI
+              case 'scheduled':
+              default:
+                return 'scheduled';
+            }
+          })();
+
+          const isListener = !a.provider_id; // heuristic for listening sessions
+          const mode: Appointment['mode'] = a.session_mode === 'in_person' ? 'in-person' : 'video';
+
+          return {
+            id: a.id,
+            date: typeof a.appointment_date === 'string' ? a.appointment_date : new Date(a.appointment_date).toISOString().split('T')[0],
+            time: a.start_time || '',
+            duration: `${a.duration || 45} mins`,
+            provider: isListener ? { name: 'Listening Service', type: 'Listener', rating: 5 } : { name: 'Provider', type: 'counsellor', rating: 5 },
+            service: isListener ? { name: 'Listening Session', description: 'Anonymous & Confidential', tier: 'N/A' } : undefined,
+            mode,
+            type: isListener ? 'listening' : 'consultation',
+            status: uiStatus,
+            fee: Number(a.amount) || 0,
+            notes: a.client_message || undefined,
+            meetingLink: undefined,
+            canJoin: uiStatus === 'scheduled' || uiStatus === 'in_progress',
+            sessionStarted: uiStatus === 'in_progress',
+            isListener,
+          } as Appointment;
+        });
+
+        setAppointments(mapped);
+      } catch (e) {
+        console.error('Dashboard load error:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [client?.id]);
+
+  const stats = useMemo(() => {
+    const totalSessions = appointments.length;
+    const upcomingSessions = appointments.filter(a => a.status === 'scheduled' || a.status === 'in_progress').length;
+    const completedSessions = appointments.filter(a => a.status === 'completed').length;
+
+    // Prefer computing spend from appointments with payment_status completed to avoid schema drift in payments
+    const totalSpentFromAppointments = appointments
+      .filter(a => a.status === 'completed')
+      .reduce((sum, a) => sum + (a.fee || 0), 0);
+
+    return {
+      totalSessions,
+      upcomingSessions,
+      completedSessions,
+      totalSpent: totalSpentFromAppointments,
+    };
+  }, [appointments]);
 
   const upcomingAppointments = appointments.filter(a => a.status === 'scheduled' || a.status === 'in_progress');
 

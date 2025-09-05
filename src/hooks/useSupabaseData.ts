@@ -216,45 +216,77 @@ export const useBookAppointment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Utility helpers
+  const toHHMMSS = (t: string) => (/^\d{2}:\d{2}:\d{2}$/.test(t) ? t : `${t}:00`);
+  const addMinutes = (time: string, mins: number) => {
+    const [h, m] = time.split(':').map((x) => parseInt(x, 10));
+    const d = new Date(0, 0, 0, h, m, 0);
+    d.setMinutes(d.getMinutes() + mins);
+    const hh = `${d.getHours()}`.padStart(2, '0');
+    const mm = `${d.getMinutes()}`.padStart(2, '0');
+    return `${hh}:${mm}:00`;
+  };
+
   const bookAppointment = async (appointmentData: {
     provider_id: string;
     slot_id: string;
-    client_id: string;
+    client_id: string; // MUST be public.users.id (not auth.users.id)
     appointment_date: string;
-    appointment_time: string;
+    appointment_time: string; // legacy input; we map to start_time
     session_type: string;
     session_mode: string;
-    notes?: string;
-    fee: number;
-    status?: string;
+    notes?: string; // mapped to client_message
+    fee: number; // mapped to amount
+    status?: string; // ignored; we always use 'scheduled' initially
     payment_status?: string;
+    duration?: number; // optional; if missing, we read from slot
   }) => {
     setLoading(true);
     setError(null);
 
     try {
-      // Create the appointment
+      // Resolve duration and end_time
+      let duration = appointmentData.duration;
+      if (!duration && appointmentData.slot_id) {
+        const { data: slotRow } = await supabase
+          .from('slots')
+          .select('duration')
+          .eq('id', appointmentData.slot_id)
+          .single();
+        if (slotRow?.duration) duration = slotRow.duration;
+      }
+      if (!duration) duration = 45; // sensible default
+
+      const start_time = toHHMMSS(appointmentData.appointment_time);
+      const end_time = addMinutes(start_time, duration);
+
+      // Create the appointment aligned to DB schema
+      const insertRow: any = {
+        provider_id: appointmentData.provider_id,
+        slot_id: appointmentData.slot_id,
+        client_id: appointmentData.client_id,
+        appointment_date: appointmentData.appointment_date,
+        start_time,
+        end_time,
+        duration,
+        session_type: appointmentData.session_type,
+        session_mode: appointmentData.session_mode,
+        client_message: appointmentData.notes ?? null,
+        amount: appointmentData.fee,
+        status: 'scheduled', // always start as scheduled; payment flow will confirm
+        payment_status: appointmentData.payment_status || 'pending',
+        created_at: new Date().toISOString()
+      };
+
       const { data: appointment, error: appointmentError } = await supabase
         .from('appointments')
-        .insert([{
-          ...appointmentData,
-          status: appointmentData.status || 'scheduled',
-          payment_status: appointmentData.payment_status || 'pending',
-          created_at: new Date().toISOString()
-        }])
+        .insert([insertRow])
         .select()
         .single();
 
       if (appointmentError) throw appointmentError;
 
-      // Update the slot status to booked
-      const { error: slotError } = await supabase
-        .from('slots')
-        .update({ status: 'booked' })
-        .eq('id', appointmentData.slot_id);
-
-      if (slotError) throw slotError;
-
+      // No direct slot update here; DB trigger marks is_booked = true automatically.
       return appointment;
     } catch (err) {
       setError(err as Error);

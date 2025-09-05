@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useRouter } from 'next/navigation';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { useProvider, useProviderSlots, useProviderReviews, useBookAppointment } from '@/hooks/useSupabaseData';
+import { useProvider, useProviderSlots, useProviderReviews } from '@/hooks/useSupabaseData';
 import { supabase } from '@/lib/supabase';
 import { initializePayment } from '@/lib/razorpay';
 import {
@@ -63,7 +63,6 @@ export default function PsychologistDetailsPage() {
   const { stats } = useProviderReviews(providerId);
   const [sessionType, setSessionType] = useState<'consultation' | 'therapy' | 'emergency'>('consultation');
   const { slots, loading: slotsLoading } = useProviderSlots(providerId, sessionType);
-  const { bookAppointment } = useBookAppointment();
   
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [sessionMode, setSessionMode] = useState<'video' | 'audio' | 'in-person'>('video');
@@ -123,41 +122,51 @@ export default function PsychologistDetailsPage() {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+
+      // Fetch application user row to obtain users.id (required by RLS)
+      const { data: appUser, error: userFetchError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email, phone')
+        .eq('auth_id', user.id)
+        .single();
+      if (userFetchError || !appUser) throw new Error('User profile not found');
       
-      // First create the appointment in pending status
-      const appointmentData = {
-        provider_id: providerId,
-        slot_id: selectedSlot.id,
-        client_id: user.id,
-        appointment_date: selectedSlot.date,
-        appointment_time: selectedSlot.time,
-        session_type: selectedSlot.sessionType,
-        session_mode: sessionMode,
-        notes,
-        fee: selectedSlot.fee,
-        status: 'pending',
-        payment_status: 'pending'
-      };
-      
-      const appointment = await bookAppointment(appointmentData);
-      
-      if (!appointment) throw new Error('Failed to create appointment');
-      
-      // Get user details for Razorpay
+      // Build client contact
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, email, phone')
         .eq('id', user.id)
         .single();
-      
-      // Initialize Razorpay payment
+      const clientName = profile?.full_name || user.email?.split('@')[0] || 'Guest';
+      const clientEmail = profile?.email || user.email || 'guest@example.com';
+      const clientPhone = profile?.phone || '9999999999';
+
+      // Build payment intent (do NOT create appointment yet)
+      const intent = {
+        service: 'provider',
+        provider_id: providerId,
+        slot_id: selectedSlot.id,
+        client_id: appUser.id,
+        appointment_date: selectedSlot.date,
+        start_time: selectedSlot.time,
+        duration: selectedSlot.duration || 45,
+        session_type: selectedSlot.sessionType,
+        session_mode: sessionMode,
+        client_message: notes || null,
+        amount: selectedSlot.fee,
+        booking_ref: `PRV-${Date.now()}`,
+        client_name: clientName,
+        client_email: clientEmail,
+        client_phone: clientPhone,
+      };
+
       await initializePayment(
         selectedSlot.fee,
-        appointment.id,
+        intent,
         {
-          name: profile?.full_name || user.email?.split('@')[0] || 'Guest',
-          email: profile?.email || user.email || '',
-          phone: profile?.phone || '9999999999' // Default for testing
+          name: clientName,
+          email: clientEmail,
+          phone: clientPhone
         },
         async (response) => {
           // Payment successful - verify on backend
@@ -167,8 +176,7 @@ export default function PsychologistDetailsPage() {
             body: JSON.stringify({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              appointment_id: appointment.id
+              razorpay_signature: response.razorpay_signature
             })
           });
           
@@ -180,14 +188,7 @@ export default function PsychologistDetailsPage() {
         },
         (error) => {
           console.error('Payment failed or cancelled:', error);
-          // Delete the pending appointment if payment fails
-          supabase
-            .from('appointments')
-            .delete()
-            .eq('id', appointment.id)
-            .then(() => {
-              alert('Payment cancelled. Please try again.');
-            });
+          alert('Payment cancelled. Please try again.');
           setProcessing(false);
         }
       );

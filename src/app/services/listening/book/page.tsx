@@ -136,53 +136,48 @@ function ListeningBookingPageContent() {
     
     setProcessing(true);
     try {
-      // Get current user
+      // Get current user (auth user)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+
+      // Fetch application user record to get internal users.id (required by RLS)
+      const { data: appUser, error: userFetchError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email, phone')
+        .eq('auth_id', user.id)
+        .single();
+      if (userFetchError || !appUser) throw new Error('User profile not found');
       
-      // Create listening session appointment
-      const appointmentData = {
-        service_type: 'listening',
-        service_tier: currentTier.key,
-        client_id: user.id,
+      // Derive required client contact fields with safe fallbacks
+      const clientEmail = appUser.email || user.email || 'guest@example.com';
+      const clientName = [appUser.first_name, appUser.last_name].filter(Boolean).join(' ') || (user.email ? user.email.split('@')[0] : 'Guest User');
+      const clientPhone = appUser.phone || '9999999999';
+
+      // Initialize Razorpay payment with intent (do NOT create appointment yet)
+      const intent = {
+        service: 'listening',
+        client_id: appUser.id,
         appointment_date: selectedSlot.date,
-        appointment_time: selectedSlot.time,
+        start_time: selectedSlot.time,
         duration: currentTier.duration,
         session_mode: 'audio',
-        language: selectedLanguage,
-        notes: message,
-        is_emergency: isEmergency,
-        fee: currentTier.price,
-        status: 'pending',
-        payment_status: 'pending',
-        created_at: new Date().toISOString()
+        is_emergency: isEmergency || false,
+        preferred_language: selectedLanguage || null,
+        client_message: message || null,
+        amount: currentTier.price,
+        booking_ref: `LSN-${Date.now()}`,
+        client_email: clientEmail,
+        client_name: clientName,
+        client_phone: clientPhone,
       };
-      
-      const { data: appointment, error: appointmentError } = await supabase
-        .from('appointments')
-        .insert(appointmentData)
-        .select()
-        .single();
-        
-      if (appointmentError || !appointment) {
-        throw new Error('Failed to create appointment');
-      }
-      
-      // Get user details for Razorpay
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email, phone')
-        .eq('id', user.id)
-        .single();
-      
-      // Initialize Razorpay payment
+
       await initializePayment(
         currentTier.price,
-        appointment.id,
+        intent,
         {
-          name: profile?.full_name || 'Anonymous User',
-          email: profile?.email || user.email || '',
-          phone: profile?.phone || '9999999999' // Default for testing
+          name: clientName,
+          email: clientEmail,
+          phone: clientPhone
         },
         async (response) => {
           // Payment successful - verify on backend
@@ -192,8 +187,7 @@ function ListeningBookingPageContent() {
             body: JSON.stringify({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              appointment_id: appointment.id
+              razorpay_signature: response.razorpay_signature
             })
           });
           
@@ -205,14 +199,7 @@ function ListeningBookingPageContent() {
         },
         (error) => {
           console.error('Payment failed or cancelled:', error);
-          // Delete the pending appointment if payment fails
-          supabase
-            .from('appointments')
-            .delete()
-            .eq('id', appointment.id)
-            .then(() => {
-              alert('Payment cancelled. Please try again.');
-            });
+          alert('Payment cancelled. Please try again.');
           setProcessing(false);
         }
       );

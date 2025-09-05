@@ -4,81 +4,100 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import Razorpay from 'razorpay';
 import { createClient } from '@supabase/supabase-js';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
-  // Initialize services inside the handler to avoid build-time issues
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_RDdW9qvO6iNMIW',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || '86N1d0ibtUHCV3ikxnTl3HWe',
-  });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json(
-      { error: 'Server configuration error' },
-      { status: 500 }
-    );
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  console.log('Create order API called');
   try {
-    const { amount, appointmentId } = await request.json();
+    const key_id = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '';
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || '';
 
-    if (!amount || !appointmentId) {
+    if (!key_id || !key_secret) {
+      console.error('Razorpay keys missing');
+      return NextResponse.json({ error: 'Razorpay configuration missing' }, { status: 500 });
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase configuration missing');
       return NextResponse.json(
-        { error: 'Amount and appointment ID are required' },
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { amount, intent } = await request.json();
+
+    if (!amount || !intent) {
+      return NextResponse.json(
+        { error: 'Amount and intent are required' },
         { status: 400 }
       );
     }
 
-    // Get appointment details
-    const { data: appointment, error: appointmentError } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('id', appointmentId)
-      .single();
-
-    if (appointmentError || !appointment) {
-      return NextResponse.json(
-        { error: 'Appointment not found' },
-        { status: 404 }
-      );
-    }
-
-    // Create Razorpay order
-    const options = {
+    // Create Razorpay order via REST API
+    // Razorpay limits receipt length to 40 chars. Keep prefix 'receipt_' (8) + 32-char suffix.
+    const rawSuffix = `${Date.now()}_${(intent.client_id || 'guest')}`;
+    const receiptSuffix = String(rawSuffix).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
+    const body = {
       amount: Math.round(amount * 100), // Amount in paise
       currency: 'INR',
-      receipt: `receipt_${appointmentId}`,
+      receipt: `receipt_${receiptSuffix}`,
       notes: {
-        appointment_id: appointmentId,
-        booking_ref: appointment.booking_ref,
+        intent: 'appointment',
       },
     };
 
-    const order = await razorpay.orders.create(options);
+    const auth = Buffer.from(`${key_id}:${key_secret}`).toString('base64');
+    console.log('Creating Razorpay order with body:', body);
 
-    // Store order details in database
+    const rpRes = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const order = await rpRes.json().catch(() => ({}));
+
+    if (!rpRes.ok) {
+      console.error('Razorpay order API failed:', rpRes.status, order);
+      return NextResponse.json({ error: order.error?.description || 'Failed to create order at Razorpay' }, { status: 500 });
+    }
+
+    console.log('Razorpay order created:', order);
+
+    // Store order details with intent (appointment will be created after verification)
+    const paymentData: any = {
+      appointment_id: null,
+      client_id: intent.client_id || null,
+      provider_id: intent.provider_id || null,
+      amount: amount,
+      currency: 'INR',
+      gateway: 'razorpay',
+      transaction_id: order.id, // Razorpay order id
+      status: 'pending',
+      base_amount: Number(intent?.amount) || amount,
+      created_at: new Date().toISOString(),
+      metadata: { intent },
+    };
+
     const { error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        appointment_id: appointmentId,
-        client_id: appointment.client_id,
-        provider_id: appointment.provider_id,
-        amount: amount,
-        currency: 'INR',
-        gateway: 'razorpay',
-        razorpay_order_id: order.id,
-        status: 'pending',
-        base_amount: appointment.amount,
-      });
+      .insert(paymentData);
 
     if (paymentError) {
       console.error('Failed to store payment record:', paymentError);
+      console.error('Payment data:', paymentData);
       // Continue anyway - payment can still be processed
     }
 
