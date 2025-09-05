@@ -13,7 +13,7 @@ export default function PrivacyPolicyPage() {
 
       <section className="prose prose-lg mb-8">
         <p>
-          MyndZeal ("we", "us", "our") is committed to protecting and respecting your privacy. This Policy explains how we collect, use, disclose and safeguard your information when you use our website and services.
+          MyndZeal (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) is committed to protecting and respecting your privacy. This Policy explains how we collect, use, disclose and safeguard your information when you use our website and services.
         </p>
         <h2>Information We Collect</h2>
         <p>We may collect personal information you provide directly and usage information automatically.</p>

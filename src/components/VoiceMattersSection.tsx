@@ -137,7 +137,7 @@ export default function VoiceMattersSection() {
               <span className="text-[#B7E3FF] font-semibold">VOICE</span>
               <span className="text-[#EFEDE1]"> matters—</span>
               <br />
-              <span className="text-[#B7E3FF]">let's </span>
+              <span className="text-[#B7E3FF]">let&apos;s </span>
               <span className="text-[#B7E3FF] font-semibold italic">TALK.</span>
             </h2>
           </motion.div>

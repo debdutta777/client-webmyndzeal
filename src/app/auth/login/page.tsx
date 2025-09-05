@@ -1,8 +1,11 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 type AccountType = 'individual' | 'business' | 'school';
 
@@ -14,21 +17,74 @@ export default function LoginPage() {
   const [orgCode, setOrgCode] = useState(''); // business/school optional code
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [remember, setRemember] = useState(true);
+  const router = useRouter();
+  const { user } = useAuth();
+  
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/dashboard';
+      sessionStorage.removeItem('redirectAfterLogin');
+      router.push(redirectTo);
+    }
+  }, [user, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email || !password) return setError('Please fill both email and password');
-    if ((type === 'business' || type === 'school') && orgCode.trim().length === 0) {
-      // For now make org code optional; comment this to enforce
-      // return setError('Please enter your organization/institution code');
+    
+    // Validation
+    if (!email || !password) {
+      return setError('Please fill both email and password');
     }
+    
+    if ((type === 'business' || type === 'school') && orgCode && orgCode.trim().length < 4) {
+      return setError('Organization code must be at least 4 characters');
+    }
+    
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setLoading(false);
-    setSuccess(true);
+    
+    try {
+      // Sign in with Supabase
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+      
+      if (data?.user) {
+        // Check if user is a client
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (userData?.role !== 'client') {
+          await supabase.auth.signOut();
+          setError('This login is for clients only. Providers should use the provider portal.');
+          return;
+        }
+        
+        
+        // Get redirect destination from session storage
+        const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/dashboard';
+        sessionStorage.removeItem('redirectAfterLogin');
+        
+        // Redirect to intended destination
+        router.push(redirectTo);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,10 +143,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {success ? (
-              <div className="p-4 rounded-xl bg-green-50 text-green-800 text-sm">Signed in (UI-only). Wire up auth and routing per account type.</div>
-            ) : (
-              <form onSubmit={onSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-4">
         <label className="block">
                   <span className="text-sm text-gray-700">{type === 'business' ? 'Work email' : type === 'school' ? 'Institution email' : 'Email'}</span>
                   <input
@@ -161,7 +214,6 @@ export default function LoginPage() {
                   <Link href="/auth/register" className="text-[#8BA872] font-semibold">Create an account</Link>
                 </div>
               </form>
-            )}
           </div>
         </motion.div>
       </div>

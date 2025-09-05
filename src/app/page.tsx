@@ -1,6 +1,5 @@
 "use client";
 import { motion, type Variants } from "framer-motion";
-import Link from "next/link";
 import HeroSection from "@/components/HeroSection";
 import AboutSection from "@/components/AboutSection";
 import VoiceMattersSection from "@/components/VoiceMattersSection";

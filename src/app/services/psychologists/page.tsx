@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Star, Award, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface PsychologistProfile {
   id: string;
@@ -17,9 +18,7 @@ interface PsychologistProfile {
 }
 
 export default function PsychologistsServicePage() {
-  const [loading] = useState(false);
   const [profiles] = useState<PsychologistProfile[]>([]);
-  const [error] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [minRating, setMinRating] = useState<number>(0);
   const [minExperience, setMinExperience] = useState<number>(0);
@@ -149,7 +148,7 @@ export default function PsychologistsServicePage() {
           </motion.div>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((p, index) => {
+            {filtered.map((p) => {
             const fullName = `${p.first_name||''} ${p.last_name||''}`.trim() || 'Psychologist';
             const firstBioLine = p.bio ? p.bio.split(/\r?\n/)[0] : '';
             return (
@@ -162,7 +161,13 @@ export default function PsychologistsServicePage() {
                 <div className="p-6 flex flex-col items-center text-center">
                   <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-3xl mb-3 ring-2 ring-white shadow-inner group-hover:scale-105 transition-transform">
                     {p.profile_image_url ? (
-                      <img src={p.profile_image_url} alt={fullName} className="object-cover w-full h-full" />
+                      <Image 
+                        src={p.profile_image_url} 
+                        alt={fullName} 
+                        width={96} 
+                        height={96} 
+                        className="object-cover w-full h-full" 
+                      />
                     ) : <span>🧠</span>}
                   </div>
                   <a href={`/psychologists/${p.id}`} className="text-lg font-semibold text-[#2F3E25] flex items-center gap-2 hover:underline">{fullName}{p.is_verified && <Award className="w-4 h-4 text-[#8BA872]" />}</a>

@@ -13,7 +13,7 @@ export default function TermsOfServicePage() {
 
       <section className="prose prose-lg mb-8">
         <p>
-          These Terms of Service explain the rules for using MyndZeal's services and the obligations of both users and MyndZeal.
+          These Terms of Service explain the rules for using MyndZeal&apos;s services and the obligations of both users and MyndZeal.
         </p>
         <h2>Account Responsibilities</h2>
         <p>Keep your account secure and notify us of unauthorized use.</p>

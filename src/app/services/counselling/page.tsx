@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Award, Star } from 'lucide-react';
+import { Award } from 'lucide-react';
+import Image from 'next/image';
 import CounsellingCategoryButtonsClient from '@/components/CounsellingCategoryButtonsClient';
 
 export const metadata: Metadata = { 
@@ -23,20 +24,20 @@ const planCategories = [
   { key: 'lgbtq', label: 'LGBTQ+ Affirming Therapy' },
 ];
 
-interface PageProps {
-  // searchParams can be a thenable in some Next.js runtimes, so keep it flexible
-  searchParams?: { cat?: string } | Promise<{ cat?: string }> | any;
-}
 
-export default async function CounsellingPlansPage({ searchParams }: PageProps) {
-  // Await searchParams when it's a thenable (fixes Next.js: sync-dynamic-apis)
-  const params = searchParams && typeof (searchParams as any)?.then === 'function'
-    ? await (searchParams as any)
-    : (searchParams ?? {});
-
-  const catParam = params?.cat;
-  const activeCat = catParam && planCategories.find(c => c.key === catParam) ? catParam : planCategories[0].key;
-  const filtered: any[] = [];
+export default async function CounsellingPlansPage() {
+  
+  interface Counsellor {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    profile_image_url?: string;
+    is_verified?: boolean;
+    experience_years?: number;
+    hourly_rate?: number;
+  }
+  
+  const filtered: Counsellor[] = [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8] pb-16">
@@ -66,7 +67,7 @@ export default async function CounsellingPlansPage({ searchParams }: PageProps) 
           </div>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((c: any) => {
+            {filtered.map((c) => {
               const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Counsellor'
               return (
                 <div 
@@ -77,7 +78,13 @@ export default async function CounsellingPlansPage({ searchParams }: PageProps) 
                   <div className="p-6 flex flex-col items-center text-center">
                     <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-3xl mb-3 ring-2 ring-white shadow-inner group-hover:scale-105 transition-transform">
                       {c.profile_image_url ? (
-                        <img src={c.profile_image_url} alt={name} className="object-cover w-full h-full" />
+                        <Image 
+                          src={c.profile_image_url} 
+                          alt={name} 
+                          width={96} 
+                          height={96} 
+                          className="object-cover w-full h-full" 
+                        />
                       ) : <span>🗣️</span>}
                     </div>
                     <h2 className="text-lg font-semibold text-[#2F3E25] flex items-center gap-2 mb-2">

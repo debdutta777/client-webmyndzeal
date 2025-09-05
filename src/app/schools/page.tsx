@@ -7,7 +7,7 @@ const SchoolsPage = () => {
 
   const services = [
     {
-      title: "Student Counseling Programs",
+      title: "Student counselling Programs",
       description: "Comprehensive mental health support tailored for students of all ages",
       features: ["Individual Sessions", "Group Therapy", "Crisis Intervention", "Academic Support"],
       icon: "📚",
@@ -16,7 +16,7 @@ const SchoolsPage = () => {
     {
       title: "Teacher Wellness Support",
       description: "Mental health resources and stress management for educators and staff",
-      features: ["Staff Counseling", "Burnout Prevention", "Work-Life Balance", "Professional Development"],
+      features: ["Staff counselling", "Burnout Prevention", "Work-Life Balance", "Professional Development"],
       icon: "👩‍🏫",
       color: "from-[#B7E3FF]/20 to-[#8BA872]/20"
     },
@@ -69,7 +69,7 @@ const SchoolsPage = () => {
     {
       title: "High School (9-12)",
       description: "Prepare students for adulthood with comprehensive mental health resources",
-      features: ["College Prep Stress", "Career Counseling", "Relationship Skills", "Life Transitions"],
+      features: ["College Prep Stress", "Career counselling", "Relationship Skills", "Life Transitions"],
       icon: "🎓",
       gradient: "from-[#B7E3FF] to-[#7A9C61]"
     }
@@ -566,7 +566,7 @@ const SchoolsPage = () => {
                 className="w-full max-w-md mx-auto p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#8BA872]/10 to-[#B7E3FF]/10 shadow-xl hover:shadow-2xl transition-all duration-500 border border-[#8BA872]/20"
                 style={{ transformStyle: "preserve-3d" }}
               >
-                <div className="text-[#8BA872] text-5xl sm:text-6xl mb-3 sm:mb-4 opacity-50 text-center">"</div>
+                <div className="text-[#8BA872] text-5xl sm:text-6xl mb-3 sm:mb-4 opacity-50 text-center">&quot;</div>
                 <p className="text-gray-700 text-base sm:text-lg mb-4 sm:mb-6 italic leading-relaxed text-center">{testimonial.quote}</p>
                 <div className="border-t border-[#8BA872]/20 pt-3 sm:pt-4 text-center">
                   <h4 className="font-bold text-gray-800 text-sm sm:text-base">{testimonial.author}</h4>

@@ -13,7 +13,7 @@ export default function TermsPage() {
 
       <section className="prose prose-lg mb-8">
         <p>
-          These Terms & Services govern your use of MyndZeal's website and services. By accessing or using the service, you agree to be bound by these terms.
+          These Terms & Services govern your use of MyndZeal&apos;s website and services. By accessing or using the service, you agree to be bound by these terms.
         </p>
         <h2>Use of Service</h2>
         <p>Users must be at least 16 years old or have parental consent. You agree not to misuse the services.</p>

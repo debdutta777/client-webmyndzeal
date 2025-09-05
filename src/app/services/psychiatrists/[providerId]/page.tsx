@@ -1,25 +1,24 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useProvider, useProviderSlots, useProviderReviews, useBookAppointment } from '@/hooks/useSupabaseData';
+import { supabase } from '@/lib/supabase';
 import {
   Calendar,
-  Clock,
   Video,
   Phone,
   MapPin,
   Star,
   ArrowLeft,
-  Check,
   Shield,
   Award,
   MessageCircle,
   Heart,
-  ChevronDown,
   CreditCard
 } from 'lucide-react';
-import Link from 'next/link';
 
 // Types
 interface Provider {
@@ -55,72 +54,62 @@ interface TimeSlot {
 export default function ProviderDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const { requireAuth } = useRequireAuth();
   const providerId = params.providerId as string;
   
-  const [provider, setProvider] = useState<Provider | null>(null);
-  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  // Use Supabase hooks to fetch real data
+  const { provider, loading: providerLoading } = useProvider(providerId);
+  const { stats } = useProviderReviews(providerId);
+  const [sessionType, setSessionType] = useState<'consultation' | 'therapy' | 'emergency'>('consultation');
+  const { slots, loading: slotsLoading } = useProviderSlots(providerId, sessionType);
+  const { bookAppointment } = useBookAppointment();
+  
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [sessionMode, setSessionMode] = useState<'video' | 'audio' | 'in-person'>('video');
   const [step, setStep] = useState<'details' | 'slots' | 'booking' | 'payment'>('details');
-  const [sessionType, setSessionType] = useState<'consultation' | 'therapy' | 'emergency'>('consultation');
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('card');
 
-  // Mock data - in real app, fetch from API
-  useEffect(() => {
-    // Mock provider data
-    const mockProvider: Provider = {
-      id: providerId,
-      name: "Dr. Arjun Mehta",
-      type: "Psychiatrist",
-      rating: 4.8,
-      reviews: 156,
-      experience: 12,
-      languages: ["English", "Hindi", "Gujarati"],
-      specializations: ["Anxiety Disorders", "Depression", "ADHD", "Bipolar Disorder"],
-      bio: "Dr. Arjun Mehta is a renowned psychiatrist with over 12 years of experience in treating anxiety disorders, depression, and ADHD. He believes in a holistic approach to mental health and has helped thousands of patients overcome their challenges through personalized treatment plans.",
-      qualifications: "MBBS, MD Psychiatry, Fellowship in Child Psychiatry",
-      verified: true,
-      fees: {
-        consultation: 2500,
-        therapy: 3000,
-        emergency: 4000
-      }
-    };
+  // Transform provider data to match the component's expected format
+  const formattedProvider: Provider | null = provider ? {
+    id: provider.id,
+    name: provider.full_name || provider.name || 'Provider',
+    type: 'Psychiatrist',
+    rating: stats.rating || 0,
+    reviews: stats.count || 0,
+    experience: provider.years_of_experience || 0,
+    languages: provider.languages || [],
+    specializations: provider.specializations || [],
+    bio: provider.bio || '',
+    qualifications: provider.qualifications || '',
+    verified: provider.verified || false,
+    fees: {
+      consultation: provider.consultation_fee || 2500,
+      therapy: provider.therapy_fee || 3000,
+      emergency: provider.emergency_fee || 4000
+    },
+    image: provider.profile_image
+  } : null;
 
-    // Mock slots data (from provider portal/admin approved)
-    const mockSlots: TimeSlot[] = [
-      { id: "1", date: "2025-09-05", time: "09:00", duration: 45, available: true, sessionType: "consultation", fee: 2500 },
-      { id: "2", date: "2025-09-05", time: "10:00", duration: 45, available: false, sessionType: "consultation", fee: 2500 },
-      { id: "3", date: "2025-09-05", time: "11:00", duration: 45, available: true, sessionType: "consultation", fee: 2500 },
-      { id: "4", date: "2025-09-05", time: "14:00", duration: 60, available: true, sessionType: "therapy", fee: 3000 },
-      { id: "5", date: "2025-09-06", time: "09:00", duration: 45, available: true, sessionType: "consultation", fee: 2500 },
-      { id: "6", date: "2025-09-06", time: "10:00", duration: 60, available: true, sessionType: "therapy", fee: 3000 },
-      { id: "7", date: "2025-09-06", time: "16:00", duration: 30, available: true, sessionType: "emergency", fee: 4000 },
-    ];
-
-    setProvider(mockProvider);
-    setSlots(mockSlots);
-  }, [providerId]);
-
-  // Filter slots by session type
-  const filteredSlots = slots.filter(slot => 
-    slot.sessionType === sessionType && 
-    slot.available &&
-    new Date(slot.date) >= new Date()
-  );
-
-  // Group slots by date
-  const groupedSlots = filteredSlots.reduce((acc, slot) => {
+  // Group slots by date (slots are already filtered by sessionType in the hook)
+  const groupedSlots = slots.reduce((acc, slot) => {
     if (!acc[slot.date]) acc[slot.date] = [];
-    acc[slot.date].push(slot);
+    // Transform slot to match TimeSlot interface
+    const transformedSlot: TimeSlot = {
+      ...slot,
+      sessionType: (slot.sessionType as 'consultation' | 'therapy' | 'emergency') || 'consultation'
+    };
+    acc[slot.date].push(transformedSlot);
     return acc;
   }, {} as Record<string, TimeSlot[]>);
 
   const handleSlotSelect = (slot: TimeSlot) => {
-    setSelectedSlot(slot);
-    setStep('booking');
+    // Require authentication before booking a slot
+    requireAuth(() => {
+      setSelectedSlot(slot);
+      setStep('booking');
+    }, `/services/psychiatrists/${providerId}`);
   };
 
   const handleBooking = () => {
@@ -128,16 +117,38 @@ export default function ProviderDetailsPage() {
   };
 
   const handlePayment = async () => {
-    setProcessing(true);
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    setProcessing(false);
+    if (!selectedSlot || !formattedProvider) return;
     
-    // Redirect to dashboard with success message
-    router.push('/dashboard?booking=success');
+    setProcessing(true);
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Book the appointment
+      await bookAppointment({
+        provider_id: providerId,
+        slot_id: selectedSlot.id,
+        client_id: user.id,
+        appointment_date: selectedSlot.date,
+        appointment_time: selectedSlot.time,
+        session_type: selectedSlot.sessionType,
+        session_mode: sessionMode,
+        notes,
+        fee: selectedSlot.fee
+      });
+      
+      // Redirect to dashboard with success message
+      router.push('/dashboard?booking=success');
+    } catch (error) {
+      console.error('Booking failed:', error);
+      alert('Failed to book appointment. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  if (!provider) {
+  if (providerLoading || slotsLoading || !formattedProvider) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8] flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8BA872]"></div>
@@ -159,14 +170,14 @@ export default function ProviderDetailsPage() {
             </button>
             <div>
               <h1 className="text-3xl font-bold text-[#2D3319]">Provider Details</h1>
-              <p className="text-gray-600 mt-1">Book your appointment with {provider.name}</p>
+              <p className="text-gray-600 mt-1">Book your appointment with {formattedProvider.name}</p>
             </div>
           </div>
         </div>
 
         {step === 'details' && (
           <ProviderDetailsStep 
-            provider={provider}
+            provider={formattedProvider}
             sessionType={sessionType}
             setSessionType={setSessionType}
             onNext={() => setStep('slots')}
@@ -175,7 +186,7 @@ export default function ProviderDetailsPage() {
 
         {step === 'slots' && (
           <SlotsSelectionStep
-            provider={provider}
+            provider={formattedProvider}
             groupedSlots={groupedSlots}
             sessionType={sessionType}
             onSlotSelect={handleSlotSelect}
@@ -185,7 +196,7 @@ export default function ProviderDetailsPage() {
 
         {step === 'booking' && selectedSlot && (
           <BookingDetailsStep
-            provider={provider}
+            provider={formattedProvider}
             slot={selectedSlot}
             sessionMode={sessionMode}
             setSessionMode={setSessionMode}
@@ -198,7 +209,7 @@ export default function ProviderDetailsPage() {
 
         {step === 'payment' && selectedSlot && (
           <PaymentStep
-            provider={provider}
+            provider={formattedProvider}
             slot={selectedSlot}
             sessionMode={sessionMode}
             notes={notes}
@@ -215,7 +226,14 @@ export default function ProviderDetailsPage() {
 }
 
 // Provider Details Step
-function ProviderDetailsStep({ provider, sessionType, setSessionType, onNext }: any) {
+interface ProviderDetailsStepProps {
+  provider: Provider;
+  sessionType: 'consultation' | 'therapy' | 'emergency';
+  setSessionType: (type: 'consultation' | 'therapy' | 'emergency') => void;
+  onNext: () => void;
+}
+
+function ProviderDetailsStep({ provider, sessionType, setSessionType, onNext }: ProviderDetailsStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -300,7 +318,7 @@ function ProviderDetailsStep({ provider, sessionType, setSessionType, onNext }: 
           ].filter(type => provider.fees[type.key as keyof typeof provider.fees]).map((type) => (
             <button
               key={type.key}
-              onClick={() => setSessionType(type.key as any)}
+              onClick={() => setSessionType(type.key as 'consultation' | 'therapy' | 'emergency')}
               className={`p-4 rounded-lg border-2 text-left transition-all ${
                 sessionType === type.key
                   ? 'border-[#8BA872] bg-[#8BA872]/5'
@@ -328,7 +346,15 @@ function ProviderDetailsStep({ provider, sessionType, setSessionType, onNext }: 
 }
 
 // Slots Selection Step
-function SlotsSelectionStep({ provider, groupedSlots, sessionType, onSlotSelect, onBack }: any) {
+interface SlotsSelectionStepProps {
+  provider: Provider;
+  groupedSlots: Record<string, TimeSlot[]>;
+  sessionType: 'consultation' | 'therapy' | 'emergency';
+  onSlotSelect: (slot: TimeSlot) => void;
+  onBack: () => void;
+}
+
+function SlotsSelectionStep({ provider, groupedSlots, sessionType, onSlotSelect, onBack }: SlotsSelectionStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -364,7 +390,7 @@ function SlotsSelectionStep({ provider, groupedSlots, sessionType, onSlotSelect,
       </div>
 
       <div className="space-y-6">
-        {Object.entries(groupedSlots).map(([date, dateSlots]: [string, any]) => (
+        {Object.entries(groupedSlots).map(([date, dateSlots]) => (
           <div key={date} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {new Date(date).toLocaleDateString('en-US', { 
@@ -403,7 +429,18 @@ function SlotsSelectionStep({ provider, groupedSlots, sessionType, onSlotSelect,
 }
 
 // Booking Details Step
-function BookingDetailsStep({ provider, slot, sessionMode, setSessionMode, notes, setNotes, onConfirm, onBack }: any) {
+interface BookingDetailsStepProps {
+  provider: Provider;
+  slot: TimeSlot;
+  sessionMode: 'video' | 'audio' | 'in-person';
+  setSessionMode: (mode: 'video' | 'audio' | 'in-person') => void;
+  notes: string;
+  setNotes: (notes: string) => void;
+  onConfirm: () => void;
+  onBack: () => void;
+}
+
+function BookingDetailsStep({ provider, slot, sessionMode, setSessionMode, notes, setNotes, onConfirm, onBack }: BookingDetailsStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -476,7 +513,7 @@ function BookingDetailsStep({ provider, slot, sessionMode, setSessionMode, notes
             return (
               <button
                 key={mode.key}
-                onClick={() => setSessionMode(mode.key)}
+                onClick={() => setSessionMode(mode.key as 'video' | 'audio' | 'in-person')}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
                   sessionMode === mode.key
                     ? 'border-[#8BA872] bg-[#8BA872]/5'
@@ -523,7 +560,20 @@ function BookingDetailsStep({ provider, slot, sessionMode, setSessionMode, notes
 }
 
 // Payment Step
-function PaymentStep({ provider, slot, sessionMode, notes, paymentMethod, setPaymentMethod, processing, onPayment, onBack }: any) {
+interface PaymentStepProps {
+  provider: Provider; // Provider data
+  slot: TimeSlot;
+  sessionMode: 'video' | 'audio' | 'in-person';
+  notes: string;
+  paymentMethod: string;
+  setPaymentMethod: (method: string) => void;
+  processing: boolean;
+  onPayment: () => void;
+  onBack: () => void;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function PaymentStep({ provider, slot, sessionMode, notes, paymentMethod, setPaymentMethod, processing, onPayment, onBack }: PaymentStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

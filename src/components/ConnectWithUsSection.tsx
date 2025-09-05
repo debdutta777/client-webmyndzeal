@@ -2,14 +2,27 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-const SocialIcon = ({ href, icon, label, index }: any) => {
+interface SocialIconProps {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  index: number;
+}
+
+const SocialIcon = ({ href, icon, label, index }: SocialIconProps) => {
   return (
     <motion.a href={href} target="_blank" rel="noopener noreferrer" initial={{ opacity: 0, scale: 0 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: index * 0.1 }} whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.95 }} className="w-12 h-12 bg-gradient-to-br from-[#8BA872] to-[#7A9C61] rounded-2xl flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 group" aria-label={label}>{icon}</motion.a>
   );
 };
 
-const FooterLink = ({ href, children, isExternal = false }: any) => {
-  const Component: any = isExternal ? 'a' : Link;
+interface FooterLinkProps {
+  href: string;
+  children: React.ReactNode;
+  isExternal?: boolean;
+}
+
+const FooterLink = ({ href, children, isExternal = false }: FooterLinkProps) => {
+  const Component = isExternal ? 'a' : Link;
   const props = isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {};
   return (
     <Component href={href} {...props} className="text-gray-600 hover:text-[#8BA872] transition-colors duration-300 text-sm">{children}</Component>
@@ -52,7 +65,7 @@ export default function ConnectWithUsSection() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="lg:col-span-1">
               <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-[#8BA872] to-[#B7E3FF] bg-clip-text text-transparent">MyndZeal</h3>
-              <p className="text-gray-400 leading-relaxed mb-6">Your trusted partner in mental wellness. We provide personalized counseling services to help you achieve emotional balance and personal growth.</p>
+              <p className="text-gray-400 leading-relaxed mb-6">Your trusted partner in mental wellness. We provide personalized counselling services to help you achieve emotional balance and personal growth.</p>
               <div className="flex items-center text-sm text-gray-400 mb-2"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>+91 6290 364 859</div>
               <div className="flex items-center text-sm text-gray-400"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>info@myndzeal.com</div>
             </motion.div>
@@ -83,7 +96,7 @@ export default function ConnectWithUsSection() {
             <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }} className="lg:text-right">
               <h4 className="text-lg font-semibold mb-6 text-white">Legal</h4>
               <div className="flex flex-wrap gap-4 lg:justify-end mb-6">{legal.map((link, index) => (<span key={link.href}><FooterLink href={link.href}>{link.label}</FooterLink>{index < legal.length - 1 && (<span className="text-gray-600 mx-2">|</span>)}</span>))}</div>
-              <div className="bg-gradient-to-r from-[#8BA872] to-[#7A9C61] rounded-2xl p-6 text-center"><h5 className="font-bold text-lg mb-2">24/7 Crisis Support</h5><p className="text-sm mb-3 opacity-90">If you're in crisis, we're here to help immediately.</p><motion.a href="tel:+916290364859" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-flex items-center bg-white text-[#8BA872] px-6 py-2 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300">Call Now</motion.a></div>
+              <div className="bg-gradient-to-r from-[#8BA872] to-[#7A9C61] rounded-2xl p-6 text-center"><h5 className="font-bold text-lg mb-2">24/7 Crisis Support</h5><p className="text-sm mb-3 opacity-90">If you&apos;re in crisis, we&apos;re here to help immediately.</p><motion.a href="tel:+916290364859" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-flex items-center bg-white text-[#8BA872] px-6 py-2 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300">Call Now</motion.a></div>
             </motion.div>
           </div>
         </div>

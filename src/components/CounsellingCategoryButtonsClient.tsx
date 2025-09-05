@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -12,7 +12,7 @@ interface Props {
   categories: Cat[];
 }
 
-export default function CounsellingCategoryButtonsClient({ categories }: Props) {
+function CounsellingCategoryButtons({ categories }: Props) {
   const searchParams = useSearchParams();
   const catParam = searchParams?.get('cat') || undefined;
   const active = catParam && categories.find((c) => c.key === catParam) ? catParam : categories[0]?.key;
@@ -33,5 +33,19 @@ export default function CounsellingCategoryButtonsClient({ categories }: Props) 
         </Link>
       ))}
     </div>
+  );
+}
+
+export default function CounsellingCategoryButtonsClient({ categories }: Props) {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-wrap gap-3 justify-center">
+        <div className="px-6 py-3 rounded-xl bg-gray-200 animate-pulse w-32 h-12"></div>
+        <div className="px-6 py-3 rounded-xl bg-gray-200 animate-pulse w-40 h-12"></div>
+        <div className="px-6 py-3 rounded-xl bg-gray-200 animate-pulse w-36 h-12"></div>
+      </div>
+    }>
+      <CounsellingCategoryButtons categories={categories} />
+    </Suspense>
   );
 }

@@ -98,7 +98,7 @@ export default function Navbar() {
           </motion.div>
 
           <motion.div className="hidden md:flex flex-1 justify-center items-center space-x-8" variants={navListVariants} initial="hidden" animate="visible">
-            {navItems.map((item, idx) => (
+            {navItems.map((item) => (
               <motion.div key={item.name} className="relative" variants={navItemVariant} onMouseEnter={() => item.dropdown && setServicesDropdown(true)} onMouseLeave={() => item.dropdown && setServicesDropdown(false)} whileHover="hover">
                 {item.dropdown ? (
                   <>
@@ -109,7 +109,7 @@ export default function Navbar() {
                     <AnimatePresence>
                       {servicesDropdown && (
                         <motion.div initial="hidden" animate="visible" exit="hidden" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.04 } } }} transition={{ duration: 0.18 }} className="absolute left-0 mt-3 w-[300px] bg-white rounded-xl shadow-lg border border-gray-200 p-3 z-50">
-                          {serviceLinks.map((s, i) => (
+                          {serviceLinks.map((s) => (
                             <motion.div key={s.href} variants={dropdownItem} className="rounded">
                               <Link href={s.href} className="block px-3 py-2 rounded hover:bg-gray-50">
                                 <div className="text-sm font-medium text-gray-900">{s.name}</div>

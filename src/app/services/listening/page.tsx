@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import { Metadata } from 'next'
+"use client";
 
-export const metadata: Metadata = {
-  title: 'Listening Circle | MyndZeal'
-}
+import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { useRouter } from 'next/navigation'
+
+// Metadata moved to generateMetadata for client component compatibility
 
 const tiers = [
   {
@@ -36,6 +36,14 @@ const tiers = [
 ]
 
 export default function ListeningCyclePage() {
+  const { requireAuth } = useRequireAuth();
+  const router = useRouter();
+
+  const handleSelectTier = (href: string) => {
+    requireAuth(() => {
+      router.push(href);
+    }, href);
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F0F7FC] via-[#C8E8F5] to-[#8BA872]/20 py-20 px-4">
       <div className="max-w-5xl mx-auto">
@@ -81,7 +89,12 @@ export default function ListeningCyclePage() {
                 </div>
               </div>
               <p className="text-sm text-[#4A5D3A] flex-1 mb-5 leading-relaxed">{t.description}</p>
-              <Link href={t.href} className="inline-flex justify-center items-center text-sm font-semibold bg-[#8BA872] text-white rounded-xl py-2.5 px-4 hover:bg-[#76925b] shadow hover:shadow-md transition mt-auto">Select</Link>
+              <button
+                onClick={() => handleSelectTier(t.href)}
+                className="inline-flex justify-center items-center text-sm font-semibold bg-[#8BA872] text-white rounded-xl py-2.5 px-4 hover:bg-[#76925b] shadow hover:shadow-md transition mt-auto cursor-pointer"
+              >
+                Select
+              </button>
             </div>
           ))}
         </div>
@@ -89,5 +102,3 @@ export default function ListeningCyclePage() {
     </div>
   )
 }
-
-export const dynamic = 'force-static';

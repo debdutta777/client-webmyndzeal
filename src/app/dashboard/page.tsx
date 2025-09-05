@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import RequireAuth from '@/components/RequireAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Calendar, 
   Clock, 
-  User, 
   Video, 
   Phone, 
   MapPin, 
@@ -13,7 +14,6 @@ import {
   Bell, 
   Settings, 
   FileText,
-  ChevronRight,
   Play,
   ExternalLink,
   Users,
@@ -33,7 +33,7 @@ interface Appointment {
   duration: string;
   provider: {
     name: string;
-    type: 'Psychiatrist' | 'Psychologist' | 'Counselor' | 'Listener';
+    type: 'Psychiatrist' | 'Psychologist' | 'counsellor' | 'Listener';
     image?: string;
     rating: number;
   };
@@ -73,118 +73,11 @@ const statusConfig = {
 export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'appointments' | 'history'>('overview');
   const [showNotifications, setShowNotifications] = useState(false);
+  const { client } = useAuth();
 
-  // Mock data - replace with real API calls
-  const [user] = useState({
-    name: "Rahul Kumar",
-    email: "rahul.kumar@gmail.com",
-    phone: "+91 98765 43210",
-    avatar: "",
-    memberSince: "January 2024"
-  });
-
-  const [appointments] = useState<Appointment[]>([
-    {
-      id: "1",
-      date: "2024-09-04",
-      time: "10:00",
-      duration: "45 min",
-      provider: {
-        name: "Dr. Arjun Mehta",
-        type: "Psychiatrist",
-        rating: 4.8
-      },
-      mode: "video",
-      type: "consultation",
-      status: "scheduled",
-      fee: 2500,
-      notes: "Follow-up consultation for anxiety treatment",
-      meetingLink: "https://meet.myndzeal.com/session/client-abc123",
-      canJoin: true
-    },
-    {
-      id: "2",
-      date: "2024-09-04",
-      time: "14:00",
-      duration: "60 min",
-      provider: {
-        name: "Dr. Priya Sharma",
-        type: "Psychologist",
-        rating: 4.9
-      },
-      mode: "audio",
-      type: "therapy",
-      status: "in_progress",
-      fee: 3000,
-      meetingLink: "https://meet.myndzeal.com/session/client-def456",
-      canJoin: true,
-      sessionStarted: true
-    },
-    {
-      id: "3",
-      date: "2024-09-03",
-      time: "16:00",
-      duration: "45 min",
-      provider: {
-        name: "Anonymous Listener", // This won't be shown for listeners
-        type: "Listener",
-        rating: 0 // Rating won't be shown for listeners
-      },
-      service: {
-        name: "Active Listener Support",
-        description: "Compassionate listening session",
-        tier: "Active Support"
-      },
-      mode: "audio",
-      type: "listening",
-      status: "completed",
-      fee: 1500,
-      canJoin: false,
-      isListener: true
-    },
-    {
-      id: "4",
-      date: "2024-09-05",
-      time: "20:00",
-      duration: "45 min",
-      provider: {
-        name: "Anonymous Listener", // This won't be shown for listeners
-        type: "Listener", 
-        rating: 0
-      },
-      service: {
-        name: "Empathetic Listeners",
-        description: "Deep emotional connection and understanding",
-        tier: "Empathetic Support"
-      },
-      mode: "video",
-      type: "listening",
-      status: "scheduled",
-      fee: 1499,
-      canJoin: false,
-      isListener: true,
-      meetingLink: "https://meet.myndzeal.com/session/anonymous-789"
-    }
-  ]);
-
-  const [notifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "reminder",
-      title: "Upcoming Appointment",
-      message: "Your session with Dr. Arjun Mehta starts in 30 minutes",
-      time: "30 min ago",
-      read: false
-    },
-    {
-      id: "2",
-      type: "update",
-      title: "Session Report Available",
-      message: "Your session report from Dr. Priya Sharma is ready",
-      time: "2 hours ago",
-      read: true
-    }
-  ]);
+  // TODO: Fetch from Supabase
+  const [appointments] = useState<Appointment[]>([]);
+  const [notifications] = useState<Notification[]>([]);
 
   const stats = {
     totalSessions: appointments.length,
@@ -194,7 +87,6 @@ export default function ClientDashboard() {
   };
 
   const upcomingAppointments = appointments.filter(a => a.status === 'scheduled' || a.status === 'in_progress');
-  const recentHistory = appointments.filter(a => a.status === 'completed').slice(0, 3);
 
   const handleJoinSession = (appointment: Appointment) => {
     if (appointment.meetingLink) {
@@ -203,13 +95,14 @@ export default function ClientDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8]">
+    <RequireAuth>
+      <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8]">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-[#2D3319]">Welcome back, {user.name}</h1>
+              <h1 className="text-3xl font-bold text-[#2D3319]">Welcome back, {client?.firstName || 'User'}</h1>
               <p className="text-gray-600 mt-1">Manage your mental health journey</p>
             </div>
             
@@ -256,7 +149,7 @@ export default function ClientDashboard() {
               {/* Profile Menu */}
               <Link href="/profile" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#8BA872] to-[#73905B] flex items-center justify-center">
-                  <span className="text-white font-semibold text-sm">{user.name.charAt(0)}</span>
+                  <span className="text-white font-semibold text-sm">{(client?.firstName || 'U').charAt(0)}</span>
                 </div>
                 <Settings className="w-5 h-5 text-gray-600" />
               </Link>
@@ -268,23 +161,23 @@ export default function ClientDashboard() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Tab Navigation */}
         <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 max-w-md">
-          {[
-            { key: 'overview', label: 'Overview' },
-            { key: 'appointments', label: 'Appointments' },
-            { key: 'history', label: 'History' }
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-gradient-to-r from-[#8BA872] to-[#73905B] text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            {[
+              { key: 'overview', label: 'Overview' },
+              { key: 'appointments', label: 'Appointments' },
+              { key: 'history', label: 'History' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as 'overview' | 'appointments' | 'history')}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === tab.key
+                    ? 'bg-gradient-to-r from-[#8BA872] to-[#73905B] text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
         </div>
 
         {/* Overview Tab */}
@@ -441,6 +334,7 @@ export default function ClientDashboard() {
         )}
       </div>
     </div>
+    </RequireAuth>
   );
 }
 

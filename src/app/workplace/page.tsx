@@ -28,7 +28,7 @@ const WorkplacePage = () => {
         "Compassion Fatigue Recovery",
         "Trauma-Informed Care Training",
         "Shift Work Sleep Support",
-        "Medical Professional Counseling"
+        "Medical Professional counselling"
       ]
     },
     {
@@ -38,7 +38,7 @@ const WorkplacePage = () => {
       bgColor: "bg-gradient-to-br from-[#8BA872]/30 to-[#F0F7FC]",
       programs: [
         "High-Pressure Environment Training",
-        "Financial Stress Counseling",
+        "Financial Stress counselling",
         "Executive Mental Health",
         "Market Volatility Stress Management"
       ]
@@ -85,7 +85,7 @@ const WorkplacePage = () => {
     {
       title: "Employee Wellness Programs",
       description: "Comprehensive mental health support tailored for your workforce",
-      features: ["24/7 Support", "Group Sessions", "Individual Counseling", "Stress Management"],
+      features: ["24/7 Support", "Group Sessions", "Individual counselling", "Stress Management"],
       icon: "🧠",
       color: "from-[#8BA872]/25 to-[#C8E8F5]/30"
     },
@@ -712,7 +712,7 @@ const WorkplacePage = () => {
                 className="p-8 rounded-3xl bg-gradient-to-br from-[#8BA872]/10 to-[#B7E3FF]/10 shadow-xl hover:shadow-2xl transition-all duration-500 border border-[#8BA872]/20"
                 style={{ transformStyle: "preserve-3d" }}
               >
-                <div className="text-[#8BA872] text-6xl mb-4 opacity-50">"</div>
+                <div className="text-[#8BA872] text-6xl mb-4 opacity-50">&quot;</div>
                 <p className="text-gray-700 text-lg mb-6 italic leading-relaxed">{testimonial.quote}</p>
                 <div className="border-t border-[#8BA872]/20 pt-4">
                   <h4 className="font-bold text-gray-800">{testimonial.author}</h4>

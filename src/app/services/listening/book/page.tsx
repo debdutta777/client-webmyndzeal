@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
+import RequireAuth from '@/components/RequireAuth';
 import {
-  Calendar,
   Clock,
-  Video,
   Phone,
   ArrowLeft,
   ArrowRight,
   Check,
   Shield,
-  MessageCircle,
   Heart,
   AlertCircle,
   CreditCard,
@@ -36,7 +34,7 @@ interface ListeningTier {
   description: string;
 }
 
-export default function ListeningBookingPage() {
+function ListeningBookingPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tier = searchParams.get('tier') || 'active';
@@ -83,7 +81,7 @@ export default function ListeningBookingPage() {
   const languages = ['English', 'Hindi', 'Bengali', 'Gujarati', 'Tamil', 'Telugu'];
 
   // Generate available calendar slots
-  const generateCalendarSlots = (): CalendarSlot[] => {
+  const generateCalendarSlots = useCallback((): CalendarSlot[] => {
     const slots: CalendarSlot[] = [];
     const now = new Date();
     
@@ -114,13 +112,13 @@ export default function ListeningBookingPage() {
     }
     
     return slots;
-  };
+  }, [isEmergency]);
 
   const [calendarSlots, setCalendarSlots] = useState<CalendarSlot[]>([]);
 
   useEffect(() => {
     setCalendarSlots(generateCalendarSlots());
-  }, [isEmergency]);
+  }, [generateCalendarSlots]);
 
   const handleSlotSelect = (slot: CalendarSlot) => {
     setSelectedSlot(slot);
@@ -166,7 +164,8 @@ export default function ListeningBookingPage() {
   const timeSlots = selectedDate ? getDateSlots(selectedDate) : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8] py-8">
+    <RequireAuth>
+      <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8] py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
@@ -252,11 +251,24 @@ export default function ListeningBookingPage() {
         )}
       </div>
     </div>
+    </RequireAuth>
   );
 }
 
 // Details Step
-function DetailsStep({ tier, languages, selectedLanguage, setSelectedLanguage, message, setMessage, isEmergency, setIsEmergency, onNext }: any) {
+interface DetailsStepProps {
+  tier: ListeningTier;
+  languages: string[];
+  selectedLanguage: string;
+  setSelectedLanguage: (language: string) => void;
+  message: string;
+  setMessage: (message: string) => void;
+  isEmergency: boolean;
+  setIsEmergency: (emergency: boolean) => void;
+  onNext: () => void;
+}
+
+function DetailsStep({ tier, languages, selectedLanguage, setSelectedLanguage, message, setMessage, isEmergency, setIsEmergency, onNext }: DetailsStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -397,7 +409,23 @@ function DetailsStep({ tier, languages, selectedLanguage, setSelectedLanguage, m
 }
 
 // Calendar Step
-function CalendarStep({ tier, currentMonth, setCurrentMonth, selectedDate, selectedTime, handleDateSelect, handleTimeSelect, timeSlots, daysInMonth, firstDayOfMonth, today, getDateSlots, isEmergency }: any) {
+interface CalendarStepProps {
+  tier: ListeningTier;
+  currentMonth: Date;
+  setCurrentMonth: (date: Date) => void;
+  selectedDate: string;
+  selectedTime: string;
+  handleDateSelect: (date: string) => void;
+  handleTimeSelect: (time: string) => void;
+  timeSlots: CalendarSlot[];
+  daysInMonth: number;
+  firstDayOfMonth: number;
+  today: string;
+  getDateSlots: (date: string) => CalendarSlot[];
+  isEmergency: boolean;
+}
+
+function CalendarStep({ tier, currentMonth, setCurrentMonth, selectedDate, selectedTime, handleDateSelect, handleTimeSelect, timeSlots, daysInMonth, firstDayOfMonth, today, getDateSlots, isEmergency }: CalendarStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -511,7 +539,7 @@ function CalendarStep({ tier, currentMonth, setCurrentMonth, selectedDate, selec
           
           {selectedDate ? (
             <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-              {timeSlots.map((slot: any, index: number) => (
+              {timeSlots.map((slot, index) => (
                 <button
                   key={index}
                   onClick={() => handleTimeSelect(slot.time)}
@@ -549,7 +577,20 @@ function CalendarStep({ tier, currentMonth, setCurrentMonth, selectedDate, selec
 }
 
 // Booking Details Step
-function BookingDetailsStep({ tier, slot, sessionMode, setSessionMode, selectedLanguage, message, isEmergency, onConfirm, onBack }: any) {
+interface BookingDetailsStepProps {
+  tier: ListeningTier;
+  slot: CalendarSlot;
+  sessionMode: 'audio';
+  setSessionMode: (mode: 'audio') => void; // Not actually used in listening sessions
+  selectedLanguage: string;
+  message: string;
+  isEmergency: boolean;
+  onConfirm: () => void;
+  onBack: () => void;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function BookingDetailsStep({ tier, slot, sessionMode, setSessionMode, selectedLanguage, message, isEmergency, onConfirm, onBack }: BookingDetailsStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -667,7 +708,22 @@ function BookingDetailsStep({ tier, slot, sessionMode, setSessionMode, selectedL
 }
 
 // Payment Step
-function PaymentStep({ tier, slot, sessionMode, selectedLanguage, message, isEmergency, paymentMethod, setPaymentMethod, processing, onPayment, onBack }: any) {
+interface PaymentStepProps {
+  tier: ListeningTier;
+  slot: CalendarSlot;
+  sessionMode: 'audio';
+  selectedLanguage: string;
+  message: string;
+  isEmergency: boolean;
+  paymentMethod: string;
+  setPaymentMethod: (method: string) => void;
+  processing: boolean;
+  onPayment: () => void;
+  onBack: () => void;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function PaymentStep({ tier, slot, sessionMode, selectedLanguage, message, isEmergency, paymentMethod, setPaymentMethod, processing, onPayment, onBack }: PaymentStepProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -831,5 +887,18 @@ function PaymentStep({ tier, slot, sessionMode, selectedLanguage, message, isEme
         </div>
       </div>
     </motion.div>
+  );
+}
+
+// Main component with Suspense wrapper
+export default function ListeningBookingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8BA872]"></div>
+      </div>
+    }>
+      <ListeningBookingPageContent />
+    </Suspense>
   );
 }
