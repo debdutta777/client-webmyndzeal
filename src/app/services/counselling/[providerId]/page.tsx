@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useProvider, useProviderSlots, useProviderReviews, useBookAppointment } from '@/hooks/useSupabaseData';
 import { supabase } from '@/lib/supabase';
+import { initializePayment } from '@/lib/razorpay';
 import {
   Calendar,
   Video,
@@ -124,8 +125,8 @@ export default function CounsellorDetailsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      // Book the appointment
-      await bookAppointment({
+      // First create the appointment in pending status
+      const appointmentData = {
         provider_id: providerId,
         slot_id: selectedSlot.id,
         client_id: user.id,
@@ -134,15 +135,67 @@ export default function CounsellorDetailsPage() {
         session_type: selectedSlot.sessionType,
         session_mode: sessionMode,
         notes,
-        fee: selectedSlot.fee
-      });
+        fee: selectedSlot.fee,
+        status: 'pending',
+        payment_status: 'pending'
+      };
       
-      // Redirect to dashboard with success message
-      router.push('/dashboard?booking=success');
+      const appointment = await bookAppointment(appointmentData);
+      
+      if (!appointment) throw new Error('Failed to create appointment');
+      
+      // Get user details for Razorpay
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone')
+        .eq('id', user.id)
+        .single();
+      
+      // Initialize Razorpay payment
+      await initializePayment(
+        selectedSlot.fee,
+        appointment.id,
+        {
+          name: profile?.full_name || user.email?.split('@')[0] || 'Guest',
+          email: profile?.email || user.email || '',
+          phone: profile?.phone || '9999999999' // Default for testing
+        },
+        async (response) => {
+          // Payment successful - verify on backend
+          const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              appointment_id: appointment.id
+            })
+          });
+          
+          if (verifyRes.ok) {
+            router.push('/dashboard?booking=success');
+          } else {
+            throw new Error('Payment verification failed');
+          }
+        },
+        (error) => {
+          console.error('Payment failed or cancelled:', error);
+          // Delete the pending appointment if payment fails
+          supabase
+            .from('appointments')
+            .delete()
+            .eq('id', appointment.id)
+            .then(() => {
+              alert('Payment cancelled. Please try again.');
+            });
+          setProcessing(false);
+        }
+      );
+      
     } catch (error) {
       console.error('Booking failed:', error);
-      alert('Failed to book appointment. Please try again.');
-    } finally {
+      alert('Failed to initialize payment. Please try again.');
       setProcessing(false);
     }
   };

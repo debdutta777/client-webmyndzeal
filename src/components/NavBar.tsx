@@ -1,10 +1,11 @@
 "use client";
 
-
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
+import { User, LogOut, Settings } from "lucide-react";
 
 
 
@@ -30,7 +31,9 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [servicesDropdown, setServicesDropdown] = useState(false);
+  const [userDropdown, setUserDropdown] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
+  const { user, client, signOut } = useAuth();
 
   const navListVariants = {
     hidden: {},
@@ -134,8 +137,67 @@ export default function Navbar() {
 
           <div className="hidden md:flex items-center space-x-3 ml-auto">
             <Link href="/services" className="px-4 py-2 bg-gradient-to-r from-[#8BA872] to-[#7A9C61] text-white rounded-xl font-medium text-sm shadow hover:shadow-lg">Book Session</Link>
-            <Link href="/auth/login" className="px-4 py-2 bg-white text-[#8BA872] border border-[#8BA872] rounded-xl font-medium text-sm">Login</Link>
-            <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-[#7A9C61] to-[#8BA872] text-white rounded-xl font-medium text-sm">Join Us</Link>
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserDropdown(!userDropdown)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#8BA872] to-[#7A9C61] flex items-center justify-center text-white">
+                    {client?.firstName ? client.firstName[0].toUpperCase() : <User className="w-4 h-4" />}
+                  </div>
+                  <span className="text-gray-700">{client?.firstName || 'Account'}</span>
+                  <svg className={`w-3 h-3 transition-transform ${userDropdown ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                
+                <AnimatePresence>
+                  {userDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 p-2 z-50"
+                    >
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setUserDropdown(false)}
+                        className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700"
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Dashboard</span>
+                      </Link>
+                      <Link
+                        href="/profile"
+                        onClick={() => setUserDropdown(false)}
+                        className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700"
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Settings</span>
+                      </Link>
+                      <hr className="my-2 border-gray-200" />
+                      <button
+                        onClick={() => {
+                          setUserDropdown(false);
+                          signOut();
+                        }}
+                        className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-red-600 w-full text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <>
+                <Link href="/auth/login" className="px-4 py-2 bg-white text-[#8BA872] border border-[#8BA872] rounded-xl font-medium text-sm">Login</Link>
+                <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-[#7A9C61] to-[#8BA872] text-white rounded-xl font-medium text-sm">Join Us</Link>
+              </>
+            )}
           </div>
 
           <div className="md:hidden">
@@ -174,8 +236,26 @@ export default function Navbar() {
 
               <div className="pt-4 border-t border-white/10 space-y-3">
                 <Link href="/services" onClick={() => setIsOpen(false)} className="block w-full text-center px-4 py-3 bg-gradient-to-r from-[#8BA872] to-[#7A9C61] text-white rounded-xl font-medium">Book Session</Link>
-                <Link href="/auth/login" onClick={() => setIsOpen(false)} className="block w-full text-center px-4 py-3 bg-white text-[#8BA872] border border-[#8BA872] rounded-xl font-medium">Login</Link>
-                <Link href="/auth/register" onClick={() => setIsOpen(false)} className="block w-full text-center px-4 py-3 bg-gradient-to-r from-[#7A9C61] to-[#8BA872] text-white rounded-xl font-medium">Join Us</Link>
+                {user ? (
+                  <>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8BA872] to-[#7A9C61] flex items-center justify-center text-white">
+                        {client?.firstName ? client.firstName[0].toUpperCase() : <User className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{client?.firstName} {client?.lastName}</div>
+                        <div className="text-xs text-gray-500">{user.email}</div>
+                      </div>
+                    </div>
+                    <Link href="/dashboard" onClick={() => setIsOpen(false)} className="block w-full text-center px-4 py-3 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium">Dashboard</Link>
+                    <button onClick={() => { setIsOpen(false); signOut(); }} className="block w-full text-center px-4 py-3 bg-red-50 text-red-600 border border-red-200 rounded-xl font-medium">Sign Out</button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/auth/login" onClick={() => setIsOpen(false)} className="block w-full text-center px-4 py-3 bg-white text-[#8BA872] border border-[#8BA872] rounded-xl font-medium">Login</Link>
+                    <Link href="/auth/register" onClick={() => setIsOpen(false)} className="block w-full text-center px-4 py-3 bg-gradient-to-r from-[#7A9C61] to-[#8BA872] text-white rounded-xl font-medium">Join Us</Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

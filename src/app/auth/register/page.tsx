@@ -1,15 +1,19 @@
 "use client";
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 type AccountType = 'individual' | 'business' | 'school';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [type, setType] = useState<AccountType>('individual');
   // common
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -42,29 +46,132 @@ export default function RegisterPage() {
   }, [password]);
 
   const isValid = useMemo(() => {
-    if (!name || !email || !password || !confirm) return false;
+    if (!firstName || !lastName || !email || !password || !confirm) return false;
     if (password !== confirm) return false;
+    if (password.length < 6) return false;
+    
+    // Phone is mandatory for all account types
+    if (!phone || phone.length < 10) return false;
+    
     if (type === 'individual') {
-      if (!phone || !dob) return false;
+      return true;
     } else if (type === 'business') {
-      if (!company || !companySize || !workEmail) return false;
+      if (!company || !companySize) return false;
     } else if (type === 'school') {
-      if (!schoolName || !board || !students) return false;
+      if (!schoolName || !board) return false;
     }
     return true;
-  }, [name, email, password, confirm, type, phone, dob, company, companySize, workEmail, schoolName, board, students]);
+  }, [firstName, lastName, email, password, confirm, type, phone, company, companySize, schoolName, board]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
     if (!isValid) {
       setError('Please fill all required fields correctly');
       return;
     }
+    
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    
+    // Validate phone format
+    if (!phone || phone.length < 10) {
+      setError('Please enter a valid phone number (minimum 10 digits)');
+      return;
+    }
+    
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    setSuccess(true);
+    
+    try {
+      // Step 1: Sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            account_type: type,
+            phone: phone,  // Include phone number in metadata
+            date_of_birth: dob || null  // Include DOB if provided
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+      
+      if (authError) {
+        throw authError;
+      }
+      
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
+      
+      // Step 2: User profile will be created automatically by database trigger
+      // No need to manually insert into users table
+      
+      // Step 3: Create organization record if business or school
+      if (type === 'business' || type === 'school') {
+        const orgData: Record<string, unknown> = {
+          name: type === 'business' ? company : schoolName,
+          type: type === 'business' ? 'business' : 'school',
+          email: type === 'business' ? workEmail || email : email,
+          contact_person: `${firstName} ${lastName}`,
+          contact_email: email,
+          status: 'active'
+        };
+        
+        if (type === 'business') {
+          orgData.max_employees = parseInt(companySize.split('-')[1]) || 50;
+        } else {
+          orgData.max_employees = parseInt(students) || 100;
+        }
+        
+        const { data: orgResult, error: orgError } = await supabase
+          .from('organizations')
+          .insert(orgData)
+          .select()
+          .single();
+        
+        if (!orgError && orgResult) {
+          // Link user to organization
+          await supabase
+            .from('organization_members')
+            .insert({
+              organization_id: orgResult.id,
+              user_id: authData.user.id,
+              designation: 'Admin',
+              status: 'active'
+            });
+        }
+      }
+      
+      setSuccess(true);
+      
+      // Show success message and redirect
+      setTimeout(() => {
+        router.push('/auth/login?registered=true');
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Registration error:', err);
+      
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create account';
+      if (errorMessage.includes('already registered')) {
+        setError('This email is already registered. Please sign in instead.');
+      } else if (errorMessage.includes('Invalid email')) {
+        setError('Please enter a valid email address.');
+      } else if (errorMessage.includes('Password')) {
+        setError('Password must be at least 6 characters.');
+      } else {
+        setError(errorMessage || 'Failed to create account. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -103,20 +210,27 @@ export default function RegisterPage() {
             </div>
 
             {success ? (
-              <div className="p-4 rounded-xl bg-green-50 text-green-800 text-sm">Account created (UI-only). Connect to your auth backend next.</div>
+              <div className="p-4 rounded-xl bg-green-50 text-green-800 text-sm">
+                <div className="font-semibold mb-1">Account created successfully!</div>
+                <div>Please check your email to verify your account. Redirecting to login...</div>
+              </div>
             ) : (
               <form onSubmit={onSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="block">
-                    <span className="text-sm text-gray-700">Full name</span>
-                    <input value={name} onChange={(e)=>setName(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="Jane Doe" required />
+                    <span className="text-sm text-gray-700">First name *</span>
+                    <input value={firstName} onChange={(e)=>setFirstName(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="Jane" required />
                   </label>
                   <label className="block">
-                    <span className="text-sm text-gray-700">Email</span>
+                    <span className="text-sm text-gray-700">Last name *</span>
+                    <input value={lastName} onChange={(e)=>setLastName(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="Doe" required />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="text-sm text-gray-700">Email *</span>
                     <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="you@example.com" required />
                   </label>
                   <label className="block">
-                    <span className="text-sm text-gray-700">Password</span>
+                    <span className="text-sm text-gray-700">Password * (min. 6 characters)</span>
                     <div className="relative mt-1">
                       <input type={showPass ? 'text' : 'password'} value={password} onChange={(e)=>setPassword(e.target.value)} className="block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 pr-12 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="••••••••" required />
                       <button type="button" onClick={()=>setShowPass(v=>!v)} className="absolute inset-y-0 right-2 my-auto flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:text-[#2D3319] focus:outline-none focus:ring-2 focus:ring-[#8BA872]/30" aria-label={showPass ? 'Hide password' : 'Show password'} title={showPass ? 'Hide password' : 'Show password'}>
@@ -132,7 +246,7 @@ export default function RegisterPage() {
                     </div>
                   </label>
                   <label className="block">
-                    <span className="text-sm text-gray-700">Confirm password</span>
+                    <span className="text-sm text-gray-700">Confirm password *</span>
                     <div className="relative mt-1">
                       <input type={showConfirm ? 'text' : 'password'} value={confirm} onChange={(e)=>setConfirm(e.target.value)} className="block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 pr-12 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="••••••••" required />
                       <button type="button" onClick={()=>setShowConfirm(v=>!v)} className="absolute inset-y-0 right-2 my-auto flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:text-[#2D3319] focus:outline-none focus:ring-2 focus:ring-[#8BA872]/30" aria-label={showConfirm ? 'Hide password' : 'Show password'} title={showConfirm ? 'Hide password' : 'Show password'}>
@@ -146,12 +260,20 @@ export default function RegisterPage() {
         {type === 'individual' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <label className="block">
-                      <span className="text-sm text-gray-700">Phone</span>
-          <input value={phone} onChange={(e)=>setPhone(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="+91 98765 43210" required />
+                      <span className="text-sm text-gray-700">Phone *</span>
+          <input 
+            type="tel" 
+            value={phone} 
+            onChange={(e)=>setPhone(e.target.value)} 
+            className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" 
+            placeholder="+91 98765 43210" 
+            required 
+            minLength={10}
+            title="Please enter a valid phone number" />
                     </label>
                     <label className="block">
-          <span className="text-sm text-gray-700">Date of birth</span>
-          <input type="date" value={dob} onChange={(e)=>setDob(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" required />
+          <span className="text-sm text-gray-700">Date of birth (optional)</span>
+          <input type="date" value={dob} onChange={(e)=>setDob(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" />
                     </label>
                   </div>
                 )}
@@ -160,11 +282,23 @@ export default function RegisterPage() {
                 {type === 'business' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <label className="block">
-                      <span className="text-sm text-gray-700">Company name</span>
+                      <span className="text-sm text-gray-700">Phone *</span>
+                      <input 
+                        type="tel" 
+                        value={phone} 
+                        onChange={(e)=>setPhone(e.target.value)} 
+                        className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" 
+                        placeholder="+91 98765 43210" 
+                        required 
+                        minLength={10}
+                        title="Please enter a valid phone number" />
+                    </label>
+                    <label className="block">
+                      <span className="text-sm text-gray-700">Company name *</span>
                       <input value={company} onChange={(e)=>setCompany(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="Acme Corp" required />
                     </label>
                     <label className="block">
-                      <span className="text-sm text-gray-700">Company size</span>
+                      <span className="text-sm text-gray-700">Company size *</span>
                       <select value={companySize} onChange={(e)=>setCompanySize(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" required>
                         <option value="">Select</option>
                         <option value="1-50">1-50</option>
@@ -174,8 +308,8 @@ export default function RegisterPage() {
                       </select>
                     </label>
                     <label className="block sm:col-span-2">
-                      <span className="text-sm text-gray-700">Work email</span>
-                      <input type="email" value={workEmail} onChange={(e)=>setWorkEmail(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="john@acme.com" required />
+                      <span className="text-sm text-gray-700">Work email (optional)</span>
+                      <input type="email" value={workEmail} onChange={(e)=>setWorkEmail(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="john@acme.com" />
                     </label>
                   </div>
                 )}
@@ -184,21 +318,37 @@ export default function RegisterPage() {
                 {type === 'school' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <label className="block">
-                      <span className="text-sm text-gray-700">School name</span>
+                      <span className="text-sm text-gray-700">Phone *</span>
+                      <input 
+                        type="tel" 
+                        value={phone} 
+                        onChange={(e)=>setPhone(e.target.value)} 
+                        className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" 
+                        placeholder="+91 98765 43210" 
+                        required 
+                        minLength={10}
+                        title="Please enter a valid phone number" />
+                    </label>
+                    <label className="block">
+                      <span className="text-sm text-gray-700">School name *</span>
                       <input value={schoolName} onChange={(e)=>setSchoolName(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="Riverside High" required />
                     </label>
                     <label className="block">
-                      <span className="text-sm text-gray-700">Board</span>
+                      <span className="text-sm text-gray-700">Board *</span>
                       <input value={board} onChange={(e)=>setBoard(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="CBSE / ICSE / State" required />
                     </label>
                     <label className="block sm:col-span-2">
-                      <span className="text-sm text-gray-700">Number of students</span>
-                      <input value={students} onChange={(e)=>setStudents(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="e.g., 1200" required />
+                      <span className="text-sm text-gray-700">Number of students (optional)</span>
+                      <input value={students} onChange={(e)=>setStudents(e.target.value)} className="mt-1 block w-full rounded-xl border-2 border-gray-200 bg-white/90 px-3 py-2 text-black placeholder-gray-500 focus:outline-none focus:border-[#8BA872] focus:ring-2 focus:ring-[#8BA872]/20" placeholder="e.g., 1200" />
                     </label>
                   </div>
                 )}
 
-                {error && <div className="text-sm text-red-600">{error}</div>}
+                {error && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
 
                 <button type="submit" disabled={loading} className="w-full inline-flex justify-center items-center gap-2 bg-gradient-to-r from-[#7A9C61] to-[#8BA872] text-white px-4 py-3 rounded-2xl font-semibold shadow hover:shadow-md transition disabled:opacity-70">{loading ? 'Creating…' : 'Create account'}</button>
 

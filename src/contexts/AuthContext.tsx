@@ -45,23 +45,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setUser(session.user);
           
-          // Fetch client profile
-          const { data: clientData } = await supabase
-            .from('clients')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
-          
-          if (clientData) {
-            setClient(clientData);
-          }
-          
-          // Check if user role is client
+          // Fetch user profile from users table
           const { data: userData } = await supabase
             .from('users')
-            .select('role')
-            .eq('id', session.user.id)
+            .select('*')
+            .eq('auth_id', session.user.id)
             .single();
+          
+          if (userData) {
+            // Convert user data to client format
+            const clientData: Client = {
+              id: userData.id,
+              userId: userData.auth_id,
+              email: userData.email,
+              firstName: userData.first_name,
+              lastName: userData.last_name,
+              phone: userData.phone,
+              dateOfBirth: userData.date_of_birth,
+              createdAt: userData.created_at
+            };
+            setClient(clientData);
+          }
           
           if (userData?.role !== 'client') {
             // If not a client, sign out
@@ -84,14 +88,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         setUser(session.user);
         
-        // Fetch client profile
-        const { data: clientData } = await supabase
-          .from('clients')
+        // Fetch user profile from users table
+        const { data: userData } = await supabase
+          .from('users')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('auth_id', session.user.id)
           .single();
         
-        if (clientData) {
+        if (userData) {
+          // Convert user data to client format
+          const clientData: Client = {
+            id: userData.id,
+            userId: userData.auth_id,
+            email: userData.email,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            phone: userData.phone,
+            dateOfBirth: userData.date_of_birth,
+            createdAt: userData.created_at
+          };
           setClient(clientData);
         }
       } else {

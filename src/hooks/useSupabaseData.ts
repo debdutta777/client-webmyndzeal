@@ -226,6 +226,8 @@ export const useBookAppointment = () => {
     session_mode: string;
     notes?: string;
     fee: number;
+    status?: string;
+    payment_status?: string;
   }) => {
     setLoading(true);
     setError(null);
@@ -236,7 +238,8 @@ export const useBookAppointment = () => {
         .from('appointments')
         .insert([{
           ...appointmentData,
-          status: 'scheduled',
+          status: appointmentData.status || 'scheduled',
+          payment_status: appointmentData.payment_status || 'pending',
           created_at: new Date().toISOString()
         }])
         .select()

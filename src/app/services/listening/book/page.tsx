@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import RequireAuth from '@/components/RequireAuth';
+import { supabase } from '@/lib/supabase';
+import { initializePayment } from '@/lib/razorpay';
 import {
   Clock,
   Phone,
@@ -130,13 +132,96 @@ function ListeningBookingPageContent() {
   };
 
   const handlePayment = async () => {
-    setProcessing(true);
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    setProcessing(false);
+    if (!selectedSlot || !currentTier) return;
     
-    // Redirect to dashboard with success message
-    router.push('/dashboard?booking=success&type=listening');
+    setProcessing(true);
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Create listening session appointment
+      const appointmentData = {
+        service_type: 'listening',
+        service_tier: currentTier.key,
+        client_id: user.id,
+        appointment_date: selectedSlot.date,
+        appointment_time: selectedSlot.time,
+        duration: currentTier.duration,
+        session_mode: 'audio',
+        language: selectedLanguage,
+        notes: message,
+        is_emergency: isEmergency,
+        fee: currentTier.price,
+        status: 'pending',
+        payment_status: 'pending',
+        created_at: new Date().toISOString()
+      };
+      
+      const { data: appointment, error: appointmentError } = await supabase
+        .from('appointments')
+        .insert(appointmentData)
+        .select()
+        .single();
+        
+      if (appointmentError || !appointment) {
+        throw new Error('Failed to create appointment');
+      }
+      
+      // Get user details for Razorpay
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone')
+        .eq('id', user.id)
+        .single();
+      
+      // Initialize Razorpay payment
+      await initializePayment(
+        currentTier.price,
+        appointment.id,
+        {
+          name: profile?.full_name || 'Anonymous User',
+          email: profile?.email || user.email || '',
+          phone: profile?.phone || '9999999999' // Default for testing
+        },
+        async (response) => {
+          // Payment successful - verify on backend
+          const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              appointment_id: appointment.id
+            })
+          });
+          
+          if (verifyRes.ok) {
+            router.push('/dashboard?booking=success&type=listening');
+          } else {
+            throw new Error('Payment verification failed');
+          }
+        },
+        (error) => {
+          console.error('Payment failed or cancelled:', error);
+          // Delete the pending appointment if payment fails
+          supabase
+            .from('appointments')
+            .delete()
+            .eq('id', appointment.id)
+            .then(() => {
+              alert('Payment cancelled. Please try again.');
+            });
+          setProcessing(false);
+        }
+      );
+      
+    } catch (error) {
+      console.error('Booking failed:', error);
+      alert('Failed to initialize payment. Please try again.');
+      setProcessing(false);
+    }
   };
 
   // Calendar helpers
