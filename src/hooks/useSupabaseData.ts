@@ -244,6 +244,23 @@ export const useBookAppointment = () => {
     setLoading(true);
     setError(null);
 
+    interface AppointmentInsert {
+      provider_id: string;
+      slot_id: string;
+      client_id: string;
+      appointment_date: string;
+      start_time: string;
+      end_time: string;
+      duration: number;
+      session_type: string;
+      session_mode: string;
+      client_message: string | null;
+      amount: number;
+      status: 'scheduled';
+      payment_status: string;
+      created_at: string;
+    }
+
     try {
       // Resolve duration and end_time
       let duration = appointmentData.duration;
@@ -261,7 +278,7 @@ export const useBookAppointment = () => {
       const end_time = addMinutes(start_time, duration);
 
       // Create the appointment aligned to DB schema
-      const insertRow: any = {
+      const insertRow: AppointmentInsert = {
         provider_id: appointmentData.provider_id,
         slot_id: appointmentData.slot_id,
         client_id: appointmentData.client_id,

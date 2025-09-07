@@ -63,6 +63,20 @@ interface Notification {
   read: boolean;
 }
 
+interface AppointmentRow {
+  id: string;
+  appointment_date: string | Date;
+  start_time?: string | null;
+  duration?: number | null;
+  provider_id?: string | null;
+  slot_id?: string | null;
+  status: string;
+  payment_status?: string | null;
+  amount?: number | null;
+  session_mode?: 'video' | 'audio' | 'in_person' | 'online' | null;
+  client_message?: string | null;
+}
+
 const statusConfig = {
   scheduled: { color: "blue", icon: Clock, bg: "bg-blue-100", text: "text-blue-700", label: "Scheduled" },
   completed: { color: "green", icon: CheckCircle, bg: "bg-green-100", text: "text-green-700", label: "Completed" },
@@ -78,7 +92,7 @@ export default function ClientDashboard() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [notifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // Fetch appointments for the logged-in client
   useEffect(() => {
@@ -94,7 +108,7 @@ export default function ClientDashboard() {
 
         if (error) throw error;
 
-        const mapped: Appointment[] = (data || []).map((a: any) => {
+        const mapped: Appointment[] = (data || []).map((a: AppointmentRow) => {
           // Map DB statuses to UI statuses
           const uiStatus: Appointment['status'] = ((): Appointment['status'] => {
             switch (a.status) {

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export async function POST(request: NextRequest) {
   const supabase = createClient(
@@ -70,7 +71,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handlePaymentSuccess(payment: any, supabase: any) {
+type PaymentEntity = {
+  id: string;
+  order_id: string;
+  error_description?: string;
+  error_reason?: string;
+  [key: string]: unknown;
+};
+
+async function handlePaymentSuccess(payment: PaymentEntity, supabase: SupabaseClient) {
   try {
     console.log('Processing successful payment:', payment.id);
     
@@ -128,7 +137,7 @@ async function handlePaymentSuccess(payment: any, supabase: any) {
   }
 }
 
-async function handlePaymentFailed(payment: any, supabase: any) {
+async function handlePaymentFailed(payment: PaymentEntity, supabase: SupabaseClient) {
   try {
     console.log('Processing failed payment:', payment.id);
     

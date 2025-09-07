@@ -9,6 +9,20 @@ import { createClient } from '@supabase/supabase-js';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+interface PaymentInsert {
+  appointment_id: string | null;
+  client_id: string | null;
+  provider_id: string | null;
+  amount: number;
+  currency: 'INR';
+  gateway: 'razorpay';
+  transaction_id: string;
+  status: 'pending' | 'completed' | 'failed';
+  base_amount: number;
+  created_at: string;
+  metadata: { intent: Record<string, unknown> };
+}
+
 export async function POST(request: NextRequest) {
   console.log('Create order API called');
   try {
@@ -77,10 +91,10 @@ export async function POST(request: NextRequest) {
     console.log('Razorpay order created:', order);
 
     // Store order details with intent (appointment will be created after verification)
-    const paymentData: any = {
+    const paymentData: PaymentInsert = {
       appointment_id: null,
-      client_id: intent.client_id || null,
-      provider_id: intent.provider_id || null,
+      client_id: (intent.client_id as string) || null,
+      provider_id: (intent.provider_id as string) || null,
       amount: amount,
       currency: 'INR',
       gateway: 'razorpay',

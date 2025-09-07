@@ -6,6 +6,14 @@
 // Razorpay Test Credentials
 export const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_RDdW9qvO6iNMIW';
 
+type RazorpayConstructor = new (options: RazorpayOptions) => { open(): void };
+
+declare global {
+  interface Window {
+    Razorpay?: RazorpayConstructor;
+  }
+}
+
 // Load Razorpay script
 export const loadRazorpayScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
@@ -120,13 +128,12 @@ export const initializePayment = async (
     console.log('Opening Razorpay checkout with options:', options);
     
     // Check if Razorpay is available
-    if (!(window as any).Razorpay) {
+    if (!window.Razorpay) {
       throw new Error('Razorpay SDK not available on window object');
     }
     
     // Open Razorpay checkout
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const razorpay = new (window as any).Razorpay(options);
+    const razorpay = new window.Razorpay(options);
     razorpay.open();
     console.log('Razorpay checkout opened');
   } catch (error) {

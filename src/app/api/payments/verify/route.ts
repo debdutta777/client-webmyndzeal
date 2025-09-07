@@ -7,6 +7,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as crypto from 'crypto';
 
+interface PaymentRow {
+  appointment_id?: string | null;
+  metadata?: { intent?: Record<string, unknown> } | null;
+  amount?: number | null;
+}
+
+interface AppointmentInsert {
+  booking_ref: string;
+  client_id: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  client_phone: string | null;
+  provider_id: string | null;
+  slot_id: string | null;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
+  duration: number;
+  session_type: string | null;
+  session_mode: string | null;
+  listener_session_type: string | null;
+  is_emergency: boolean;
+  preferred_language: string | null;
+  client_message: string | null;
+  status: string;
+  amount: number;
+  payment_status: 'completed';
+  payment_id: string;
+}
+
 export async function POST(request: NextRequest) {
   // Initialize services inside the handler
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -50,16 +80,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch payment row using transaction_id, fallback to razorpay_order_id
-    let paymentRow: any = null;
-    let paymentErr: any = null;
+    let paymentRow: PaymentRow | null = null;
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('payments')
         .select('*')
         .eq('transaction_id', razorpay_order_id)
         .single();
-      paymentRow = data; paymentErr = error || null;
-    } catch (_) {}
+      paymentRow = data as PaymentRow | null;
+    } catch {}
 
     if (!paymentRow) {
       const { data } = await supabase
@@ -79,7 +108,10 @@ export async function POST(request: NextRequest) {
     let appointmentId: string | null = paymentRow.appointment_id || null;
 
     if (!appointmentId) {
-      const intent = paymentRow.metadata?.intent || {};
+      const intentRaw = (paymentRow.metadata?.intent ?? {}) as Record<string, unknown>;
+      const getStr = (k: string) => (typeof intentRaw[k] === 'string' ? (intentRaw[k] as string) : null);
+      const getNum = (k: string) => (typeof intentRaw[k] === 'number' ? (intentRaw[k] as number) : null);
+      const getBool = (k: string) => (typeof intentRaw[k] === 'boolean' ? (intentRaw[k] as boolean) : false);
 
       // Helpers
       const toHHMMSS = (t: string) => (t && /^\d{2}:\d{2}:\d{2}$/.test(t) ? t : `${t || '00:00'}:00`);
@@ -92,30 +124,30 @@ export async function POST(request: NextRequest) {
         return `${hh}:${mm}:00`;
       };
 
-      const start_time = toHHMMSS(String(intent.start_time || '00:00'));
-      const duration = Number(intent.duration) || 45;
+      const start_time = toHHMMSS(String(getStr('start_time') ?? '00:00'));
+      const duration = getNum('duration') ?? 45;
       const end_time = addMinutes(start_time, duration);
 
-      const insertRow: any = {
-        booking_ref: (intent.booking_ref as string) || `AUTO-${Date.now()}`,
-        client_id: intent.client_id || null,
-        client_name: intent.client_name || null,
-        client_email: intent.client_email || null,
-        client_phone: intent.client_phone || null,
-        provider_id: intent.provider_id || null,
-        slot_id: intent.slot_id || null,
-        appointment_date: intent.appointment_date,
+      const insertRow: AppointmentInsert = {
+        booking_ref: getStr('booking_ref') ?? `AUTO-${Date.now()}`,
+        client_id: getStr('client_id'),
+        client_name: getStr('client_name'),
+        client_email: getStr('client_email'),
+        client_phone: getStr('client_phone'),
+        provider_id: getStr('provider_id'),
+        slot_id: getStr('slot_id'),
+        appointment_date: getStr('appointment_date') ?? new Date().toISOString().split('T')[0],
         start_time,
         end_time,
         duration,
-        session_type: intent.session_type || null,
-        session_mode: intent.session_mode || null,
-        listener_session_type: intent.service === 'listening' ? (intent.listener_session_type || intent.session_mode || 'audio') : null,
-        is_emergency: !!intent.is_emergency,
-        preferred_language: intent.preferred_language || null,
-        client_message: intent.client_message || null,
-        status: intent.service === 'listening' ? 'scheduled' : 'confirmed',
-        amount: Number(intent.amount) || paymentRow.amount || 0,
+        session_type: getStr('session_type'),
+        session_mode: getStr('session_mode'),
+        listener_session_type: (getStr('service') === 'listening') ? (getStr('listener_session_type') ?? getStr('session_mode') ?? 'audio') : null,
+        is_emergency: getBool('is_emergency'),
+        preferred_language: getStr('preferred_language'),
+        client_message: getStr('client_message'),
+        status: (getStr('service') === 'listening') ? 'scheduled' : 'confirmed',
+        amount: (getNum('amount') ?? paymentRow.amount ?? 0),
         payment_status: 'completed',
         payment_id: razorpay_payment_id,
       };

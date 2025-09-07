@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       // Sign out of the local session (does not revoke other devices)
-      await supabase.auth.signOut({ scope: 'local' as any });
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (e) {
       console.warn('Supabase signOut error (non-fatal):', e);
     }
