@@ -128,6 +128,12 @@ export async function POST(request: NextRequest) {
       const duration = getNum('duration') ?? 45;
       const end_time = addMinutes(start_time, duration);
 
+      const lstRaw = getStr('listener_session_type');
+      const tierRaw = getStr('tier');
+      const mapTier: Record<string, string> = { active: 'active_support', empathetic: 'empathetic', communicators: 'effective_communicators' };
+      const allowed = new Set(['active_support','empathetic','effective_communicators']);
+      const normalizedListenerType = allowed.has(String(lstRaw)) ? String(lstRaw) : (tierRaw && mapTier[tierRaw] ? mapTier[tierRaw] : null);
+
       const insertRow: AppointmentInsert = {
         booking_ref: getStr('booking_ref') ?? `AUTO-${Date.now()}`,
         client_id: getStr('client_id'),
@@ -142,7 +148,7 @@ export async function POST(request: NextRequest) {
         duration,
         session_type: getStr('session_type'),
         session_mode: getStr('session_mode'),
-        listener_session_type: (getStr('service') === 'listening') ? (getStr('listener_session_type') ?? getStr('session_mode') ?? 'audio') : null,
+        listener_session_type: (getStr('service') === 'listening') ? normalizedListenerType : null,
         is_emergency: getBool('is_emergency'),
         preferred_language: getStr('preferred_language'),
         client_message: getStr('client_message'),

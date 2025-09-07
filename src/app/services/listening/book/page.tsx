@@ -80,7 +80,27 @@ function ListeningBookingPageContent() {
   };
 
   const currentTier = tiers[tier];
+  const dbListenerType = (() => {
+    switch (tier) {
+      case 'active':
+        return 'active_support';
+      case 'empathetic':
+        return 'empathetic';
+      case 'communicators':
+        return 'effective_communicators';
+      default:
+        return 'active_support';
+    }
+  })();
   const languages = ['English', 'Hindi', 'Bengali', 'Gujarati', 'Tamil', 'Telugu'];
+
+  // Helper to format a Date as local YYYY-MM-DD (avoids UTC drift)
+  const formatLocalDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   // Generate available calendar slots
   const generateCalendarSlots = useCallback((): CalendarSlot[] => {
@@ -90,7 +110,7 @@ function ListeningBookingPageContent() {
     for (let i = 0; i < 30; i++) {
       const date = new Date(now);
       date.setDate(now.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(date);
       
       // Generate time slots every 30 minutes from 24*7 availability
       for (let hour = 0; hour < 24; hour++) {
@@ -133,6 +153,24 @@ function ListeningBookingPageContent() {
 
   const handlePayment = async () => {
     if (!selectedSlot || !currentTier) return;
+
+    // Defensive check: prevent booking in the past or too soon relative to lead time
+    try {
+      const [y, m, d] = selectedSlot.date.split('-').map(Number);
+      const [hh, mm] = selectedSlot.time.split(':').map(Number);
+      const slotDateTime = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0);
+      const now = new Date();
+      const hoursFromNow = (slotDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const minHours = isEmergency ? 1 : 6;
+      if (hoursFromNow < minHours) {
+        alert(`Selected time is too soon. ${isEmergency ? 'Emergency' : 'Regular'} sessions require at least ${minHours} hour(s) advance.`);
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to validate slot time:', e);
+      alert('Invalid date/time selected. Please choose a different slot.');
+      return;
+    }
     
     setProcessing(true);
     try {
@@ -156,6 +194,8 @@ function ListeningBookingPageContent() {
       // Initialize Razorpay payment with intent (do NOT create appointment yet)
       const intent = {
         service: 'listening',
+        tier,
+        listener_session_type: dbListenerType,
         client_id: appUser.id,
         appointment_date: selectedSlot.date,
         start_time: selectedSlot.time,
@@ -214,7 +254,7 @@ function ListeningBookingPageContent() {
   // Calendar helpers
   const daysInMonth = new Date(currentCalendarMonth.getFullYear(), currentCalendarMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentCalendarMonth.getFullYear(), currentCalendarMonth.getMonth(), 1).getDay();
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatLocalDate(new Date());
   
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');

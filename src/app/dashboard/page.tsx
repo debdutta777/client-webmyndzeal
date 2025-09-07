@@ -181,9 +181,8 @@ export default function ClientDashboard() {
   const upcomingAppointments = appointments.filter(a => a.status === 'scheduled' || a.status === 'in_progress');
 
   const handleJoinSession = (appointment: Appointment) => {
-    if (appointment.meetingLink) {
-      window.open(appointment.meetingLink, '_blank');
-    }
+    // Route to in-app video page (Option A)
+    window.location.href = `/appointments/${appointment.id}/video`;
   };
 
   return (

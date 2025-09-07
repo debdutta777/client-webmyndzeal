@@ -107,10 +107,15 @@ export default function VideoCallPage() {
         return;
       }
 
-      // Check if user is part of this appointment
-      const isClient = appointmentData.client_id === user.id;
-      const isProvider = false; // Check if user is the provider (need to check providers table)
-      
+      // Resolve application user (public.users) and authorize
+      const { data: appUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single();
+
+      const isClient = appUser?.id && appointmentData.client_id === appUser.id;
+      const isProvider = false; // client-web does not support provider auth here
       if (!isClient && !isProvider) {
         setError('You are not authorized to join this session');
         return;
