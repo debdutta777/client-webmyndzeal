@@ -94,10 +94,24 @@ async function handlePaymentSuccess(payment: any, supabase: any) {
     
     // Update appointment status
     if (paymentRecord?.appointment_id) {
+      // Determine if this is a listening appointment (no provider/slot, audio/video mode)
+      const { data: appt } = await supabase
+        .from('appointments')
+        .select('id, listener_session_type, provider_id, slot_id, session_mode')
+        .eq('id', paymentRecord.appointment_id)
+        .single();
+
+      const isListening = !!appt && (
+        !!appt.listener_session_type ||
+        (!appt.provider_id && !appt.slot_id && (appt.session_mode === 'audio' || appt.session_mode === 'video'))
+      );
+
+      const newStatus = isListening ? 'scheduled' : 'confirmed';
+
       const { error: appointmentError } = await supabase
         .from('appointments')
         .update({
-          status: 'confirmed',
+          status: newStatus,
           payment_status: 'completed',
           payment_id: payment.id
         })
@@ -106,7 +120,7 @@ async function handlePaymentSuccess(payment: any, supabase: any) {
       if (appointmentError) {
         console.error('Error updating appointment:', appointmentError);
       } else {
-        console.log('Appointment confirmed:', paymentRecord.appointment_id);
+        console.log(`Appointment ${newStatus}:`, paymentRecord.appointment_id);
       }
     }
   } catch (error) {
