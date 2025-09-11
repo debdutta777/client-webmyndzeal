@@ -21,6 +21,7 @@ interface PsychologistProfile {
   provider_type?: string;
   default_fee?: number;
   total_reviews?: number;
+  is_verified?: boolean; // derived
 }
 
 export default function PsychologistsServicePage() {
@@ -270,13 +271,13 @@ export default function PsychologistsServicePage() {
                         </>
                       );
                     })()}
-                    {p.specialties && p.specialties.length > 0 && (
+                    {p.specializations && p.specializations.length > 0 && (
                       <>
-                        {p.specialties.slice(0, 2).map(s => (
+                        {p.specializations.slice(0, 2).map((s: string) => (
                           <span key={s} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full shadow-sm text-[11px] max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap" title={s}>{s}</span>
                         ))}
-                        {p.specialties.length > 2 && (
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[11px]" title={p.specialties.slice(2).join(', ')}>+{p.specialties.length - 2} more</span>
+                        {p.specializations.length > 2 && (
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[11px]" title={p.specializations.slice(2).join(', ')}>+{p.specializations.length - 2} more</span>
                         )}
                       </>
                     )}

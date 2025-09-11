@@ -38,6 +38,9 @@ interface Counsellor {
   languages?: string[];
   rating?: number;
   total_reviews?: number;
+  // Derived fields added during transformation
+  is_verified?: boolean;
+  hourly_rate?: number;
 }
 
 export default function CounsellingPlansPage() {

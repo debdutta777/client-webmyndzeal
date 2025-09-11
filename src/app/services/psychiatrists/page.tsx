@@ -21,6 +21,7 @@ interface PsychiatristProfile {
   provider_type?: string;
   default_fee?: number;
   total_reviews?: number;
+  is_verified?: boolean; // derived
 }
 
 export default function PsychiatristsServicePage() {
