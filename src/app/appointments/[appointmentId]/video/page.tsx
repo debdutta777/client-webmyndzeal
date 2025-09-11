@@ -50,8 +50,14 @@ interface AppointmentDetails {
   meeting_status: string;
   meeting_activated_at: string | null;
   client_id: string;
-  provider_id: string;
+  provider_id: string | null;
+  listener_id: string | null;
   provider?: {
+    first_name: string;
+    last_name: string;
+    provider_type: string;
+  };
+  listener?: {
     first_name: string;
     last_name: string;
     provider_type: string;
@@ -69,6 +75,7 @@ export default function VideoCallPage() {
   
   const [appointment, setAppointment] = useState<AppointmentDetails | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
+  const [currentAppUserId, setCurrentAppUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canJoin, setCanJoin] = useState(false);
@@ -91,37 +98,68 @@ export default function VideoCallPage() {
       }
       setCurrentUser(user);
 
-      // Fetch appointment details
-      const { data: appointmentData, error: appointmentError } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          provider:providers(first_name, last_name, provider_type),
-          client:users(first_name, last_name)
-        `)
-        .eq('id', appointmentId)
-        .single();
-
-      if (appointmentError || !appointmentData) {
-        setError('Appointment not found');
-        return;
-      }
-
-      // Resolve application user (public.users) and authorize
-      const { data: appUser } = await supabase
+      // First, resolve the current user's public user id
+      const { data: currentAppUser } = await supabase
         .from('users')
         .select('id')
         .eq('auth_id', user.id)
         .single();
 
-      const isClient = appUser?.id && appointmentData.client_id === appUser.id;
-      const isProvider = false; // client-web does not support provider auth here
-      if (!isClient && !isProvider) {
+      if (!currentAppUser) {
+        console.error('Could not find user record for auth user:', user.id);
+        setError('User profile not found');
+        return;
+      }
+      
+      setCurrentAppUserId(currentAppUser.id);
+
+      // Fetch appointment details - simplified query
+      const { data: appointmentData, error: appointmentError } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('id', appointmentId)
+        .single();
+
+      if (appointmentError || !appointmentData) {
+        console.error('Appointment fetch error:', appointmentError);
+        setError('Appointment not found or access denied');
+        return;
+      }
+
+      // Verify user is the client for this appointment
+      const isClient = currentAppUser.id === appointmentData.client_id;
+      if (!isClient) {
+        console.error('Authorization failed - user is not the client for this appointment');
+        console.error('Current user id:', currentAppUser.id, 'Appointment client_id:', appointmentData.client_id);
         setError('You are not authorized to join this session');
         return;
       }
 
-      setAppointment(appointmentData);
+      // Fetch provider info separately if needed
+      let providerInfo = null;
+      if (appointmentData.provider_id) {
+        const { data: provider } = await supabase
+          .from('providers')
+          .select('first_name, last_name, provider_type')
+          .eq('id', appointmentData.provider_id)
+          .single();
+        providerInfo = provider;
+      } else if (appointmentData.listener_id) {
+        const { data: listener } = await supabase
+          .from('providers')
+          .select('first_name, last_name, provider_type')
+          .eq('id', appointmentData.listener_id)
+          .single();
+        providerInfo = listener;
+      }
+
+      // Attach provider info to appointment for display
+      const enrichedAppointment = {
+        ...appointmentData,
+        provider: providerInfo
+      };
+
+      setAppointment(enrichedAppointment);
       
       // Check meeting status
       const meetingDateTime = formatMeetingTime(
@@ -169,16 +207,16 @@ export default function VideoCallPage() {
   };
 
   const activateMeeting = async () => {
-    if (!appointment || !currentUser) return;
+    if (!appointment || !currentUser || !currentAppUserId) return;
     
     try {
-      // Update meeting status in database
+      // Update meeting status in database using public user ID
       const { error: updateError } = await supabase
         .from('appointments')
         .update({
           meeting_status: 'active',
           meeting_activated_at: new Date().toISOString(),
-          meeting_activated_by: currentUser.id
+          meeting_activated_by: currentAppUserId  // Use public user ID, not auth ID
         })
         .eq('id', appointmentId);
 
@@ -263,7 +301,7 @@ export default function VideoCallPage() {
             userImage={undefined}
             callId={appointment.stream_call_id}
             isProvider={false}
-            providerName={`${appointment.provider?.first_name} ${appointment.provider?.last_name}`}
+            providerName={`${appointment.provider?.first_name || ''} ${appointment.provider?.last_name || ''}`}
             sessionType={appointment.session_type}
             onEndCall={handleEndCall}
           />
@@ -307,7 +345,7 @@ export default function VideoCallPage() {
               {appointment.session_mode === 'audio' && ' (Audio Only)'}
             </h1>
             <p className="text-gray-600">
-              with {appointment.provider?.first_name} {appointment.provider?.last_name}
+              with {appointment.provider?.first_name || ''} {appointment.provider?.last_name || ''}
             </p>
           </div>
 
@@ -342,7 +380,7 @@ export default function VideoCallPage() {
                 <div>
                   <p className="text-sm text-gray-600">Provider</p>
                   <p className="font-medium text-gray-900">
-                    {appointment.provider?.provider_type}
+                    {appointment.provider?.provider_type || 'Listener'}
                   </p>
                 </div>
               </div>

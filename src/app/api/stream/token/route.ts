@@ -6,8 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StreamChat } from 'stream-chat';
 
-const STREAM_API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY || '88dje6tufhtx';
-const STREAM_API_SECRET = process.env.STREAM_API_SECRET || 'twahkzs45rwac3vj4sfh64uxcszr5wq39xd92sw7873hmzya7gskqd6r2npgjdeq';
+const STREAM_API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+const STREAM_API_SECRET = process.env.STREAM_API_SECRET;
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +17,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
+      );
+    }
+
+    if (!STREAM_API_KEY || !STREAM_API_SECRET) {
+      return NextResponse.json(
+        { error: 'Stream credentials not configured' },
+        { status: 500 }
       );
     }
 

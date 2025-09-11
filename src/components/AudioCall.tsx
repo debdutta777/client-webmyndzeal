@@ -66,8 +66,9 @@ export default function AudioCall({
         const streamClient = await initializeStreamClient(userId, userName, userImage);
         setClient(streamClient);
 
-        // Join the call
-        const streamCall = await joinCall(streamClient, callId, 'default');
+        // Join the call using audio_room call type for audio sessions
+        const audioCallType = process.env.NEXT_PUBLIC_STREAM_AUDIO_CALL_TYPE || 'audio_room';
+        const streamCall = await joinCall(streamClient, callId, audioCallType);
         setCall(streamCall);
         
         // Disable camera for audio-only call

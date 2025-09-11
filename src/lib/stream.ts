@@ -5,11 +5,6 @@
 
 import { StreamVideoClient, User as StreamUser, Call } from '@stream-io/video-react-sdk';
 
-// Stream Credentials
-const STREAM_API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY || '88dje6tufhtx';
-// Note: STREAM_API_SECRET should only be used server-side, not in client code
-// const STREAM_API_SECRET = process.env.STREAM_API_SECRET || 'twahkzs45rwac3vj4sfh64uxcszr5wq39xd92sw7873hmzya7gskqd6r2npgjdeq';
-
 // Stream client instance
 let streamClient: StreamVideoClient | null = null;
 
@@ -23,7 +18,7 @@ export const initializeStreamClient = async (
     return streamClient;
   }
 
-  // Get user token from backend
+  // Get user token and API key from backend (guarantees key/token match the project)
   const tokenResponse = await fetch('/api/stream/token', {
     method: 'POST',
     headers: {
@@ -33,10 +28,14 @@ export const initializeStreamClient = async (
   });
 
   if (!tokenResponse.ok) {
-    throw new Error('Failed to get Stream token');
+    const body = await tokenResponse.text();
+    throw new Error(`Failed to get Stream token: ${body}`);
   }
 
-  const { token } = await tokenResponse.json();
+  const { token, apiKey } = await tokenResponse.json();
+  if (!token || !apiKey) {
+    throw new Error('Token endpoint did not return token/apiKey');
+  }
 
   const user: StreamUser = {
     id: userId,
@@ -45,7 +44,7 @@ export const initializeStreamClient = async (
   };
 
   streamClient = new StreamVideoClient({
-    apiKey: STREAM_API_KEY,
+    apiKey,
     user,
     token,
   });
