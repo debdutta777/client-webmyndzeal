@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms & Services - MyndZeal",
+  title: "Terms & Services",
   description: "Terms & Services for MyndZeal",
 };
 

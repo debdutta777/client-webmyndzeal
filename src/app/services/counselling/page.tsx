@@ -1,12 +1,12 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Metadata } from 'next';
 import { Award } from 'lucide-react';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
 import CounsellingCategoryButtonsClient from '@/components/CounsellingCategoryButtonsClient';
-
-export const metadata: Metadata = { 
-  title: 'Counselling Plans | MyndZeal' 
-};
+import { supabase } from '@/lib/supabase';
 
 const planCategories = [
   { key: 'anxiety', label: 'Anxiety & Stress' },
@@ -25,19 +25,73 @@ const planCategories = [
 ];
 
 
-export default async function CounsellingPlansPage() {
-  
-  interface Counsellor {
-    id: string;
-    first_name?: string;
-    last_name?: string;
-    profile_image_url?: string;
-    is_verified?: boolean;
-    experience_years?: number;
-    hourly_rate?: number;
-  }
-  
-  const filtered: Counsellor[] = [];
+interface Counsellor {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  profile_image?: string;
+  profile_image_url?: string;
+  status?: string;
+  experience_years?: number;
+  default_fee?: number;
+  specializations?: string[];
+  languages?: string[];
+  rating?: number;
+  total_reviews?: number;
+}
+
+export default function CounsellingPlansPage() {
+  const [counsellors, setCounsellors] = useState<Counsellor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  useEffect(() => {
+    fetchCounsellors();
+  }, []);
+
+  const fetchCounsellors = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: providers, error: fetchError } = await supabase
+        .from('providers')
+        .select('*')
+        .eq('provider_type', 'counsellor')
+        .eq('status', 'verified')
+        .order('rating', { ascending: false });
+
+      if (fetchError) {
+        console.error('Error fetching counsellors:', fetchError);
+        setError(fetchError.message);
+        return;
+      }
+
+      const transformedCounsellors = (providers || []).map(provider => ({
+        ...provider,
+        profile_image_url: provider.profile_image,
+        is_verified: provider.status === 'verified',
+        hourly_rate: provider.default_fee
+      }));
+
+      setCounsellors(transformedCounsellors);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('Failed to load counsellors. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter counsellors based on selected category
+  const filtered = selectedCategory 
+    ? counsellors.filter(c => 
+        c.specializations?.some(s => 
+          s.toLowerCase().includes(selectedCategory.toLowerCase())
+        )
+      )
+    : counsellors;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F4FAF2] to-[#E8F4F8] pb-16">

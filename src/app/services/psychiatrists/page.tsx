@@ -1,52 +1,130 @@
 "use client";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Star, Award, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { supabase } from '@/lib/supabase';
 
 interface PsychiatristProfile {
   id: string;
   first_name?: string;
   last_name?: string;
+  profile_image?: string;
   profile_image_url?: string;
   qualifications?: string;
+  specializations?: string[];
+  languages?: string[];
   experience_years?: number;
   rating?: number;
   bio?: string;
-  is_verified?: boolean;
+  status?: string;
+  provider_type?: string;
+  default_fee?: number;
+  total_reviews?: number;
 }
 
 export default function PsychiatristsServicePage() {
-  const [profiles] = useState<PsychiatristProfile[]>([]);
+  const [profiles, setProfiles] = useState<PsychiatristProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [minRating, setMinRating] = useState<number>(0);
   const [minExperience, setMinExperience] = useState<number>(0);
   const [specialization, setSpecialization] = useState('');
   const [language, setLanguage] = useState('');
-  const [slotPricing] = useState<Record<string, number | null>>({});
+  const [slotPricing, setSlotPricing] = useState<Record<string, number | null>>({});
+
+  useEffect(() => {
+    fetchPsychiatrists();
+  }, []);
+
+  const fetchPsychiatrists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch psychiatrists from providers table
+      const { data: psychiatrists, error: fetchError } = await supabase
+        .from('providers')
+        .select('*')
+        .eq('provider_type', 'psychiatrist')
+        .eq('status', 'verified')
+        .order('rating', { ascending: false });
+
+      if (fetchError) {
+        console.error('Error fetching psychiatrists:', fetchError);
+        setError(fetchError.message);
+        return;
+      }
+
+      // Transform data to match interface
+      const transformedProfiles = (psychiatrists || []).map(provider => ({
+        ...provider,
+        profile_image_url: provider.profile_image,
+        qualifications: provider.specializations?.join(', '),
+        is_verified: provider.status === 'verified'
+      }));
+
+      setProfiles(transformedProfiles);
+
+      // Fetch minimum slot pricing for each psychiatrist
+      if (psychiatrists && psychiatrists.length > 0) {
+        const providerIds = psychiatrists.map(p => p.id);
+        
+        const { data: slots, error: slotsError } = await supabase
+          .from('slots')
+          .select('provider_id, total_fee')
+          .in('provider_id', providerIds)
+          .eq('status', 'approved')
+          .eq('is_booked', false)
+          .gte('date', new Date().toISOString().split('T')[0]);
+
+        if (!slotsError && slots) {
+          const pricing: Record<string, number | null> = {};
+          providerIds.forEach(id => {
+            const providerSlots = slots.filter(s => s.provider_id === id);
+            if (providerSlots.length > 0) {
+              const minFee = Math.min(...providerSlots.map(s => s.total_fee || 0));
+              pricing[id] = minFee;
+            }
+          });
+          setSlotPricing(pricing);
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('Failed to load psychiatrists. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     return profiles.filter(p => {
       const name = `${p.first_name||''} ${p.last_name||''}`.toLowerCase();
-      const specText = '';
-      const consultationText = '';
+      const specializationsText = (p.specializations || []).join(' ').toLowerCase();
       const body = p.bio?.toLowerCase() || '';
       const qual = p.qualifications?.toLowerCase() || '';
       const q = query.toLowerCase();
+      
       if (query.trim()) {
-        const matchesQuery = [name, specText, consultationText, body, qual].some(f => f.includes(q));
+        const matchesQuery = [name, specializationsText, body, qual].some(f => f.includes(q));
         if (!matchesQuery) return false;
       }
+      
       if (specialization.trim()) {
         const sp = specialization.toLowerCase();
-        if (!specText.includes(sp) && !consultationText.includes(sp)) return false;
+        if (!specializationsText.includes(sp) && !body.includes(sp)) return false;
       }
+      
       if (minRating > 0 && (p.rating || 0) < minRating) return false;
       if (minExperience > 0 && (p.experience_years || 0) < minExperience) return false;
+      
       if (language.trim()) {
-        const langs: string[] = [];
+        const langs = (p.languages || []).map(l => l.toLowerCase());
         if (!langs.some((l: string) => l.includes(language.toLowerCase()))) return false;
       }
+      
       return true;
     });
   }, [profiles, query, specialization, minRating, minExperience, language]);
@@ -147,8 +225,44 @@ export default function PsychiatristsServicePage() {
             </div>
           </motion.div>
 
+          {loading && (
+            <div className="text-center py-16">
+              <div className="inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full border border-[#6B8E23]/20">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#6B8E23] mr-2"></div>
+                <span className="text-[#6B8E23] font-semibold">Loading psychiatrists...</span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="max-w-md mx-auto mb-8">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-red-600 text-center">{error}</p>
+                <button 
+                  onClick={fetchPsychiatrists}
+                  className="mt-3 w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && filtered.length === 0 && (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-gray-400 text-2xl">🔍</span>
+              </div>
+              <p className="text-gray-600 font-medium">
+                {profiles.length === 0 
+                  ? "No psychiatrists available at the moment. Please check back later."
+                  : "No psychiatrists match your search criteria. Try adjusting your filters."}
+              </p>
+            </div>
+          )}
+
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((p) => {
+            {!loading && !error && filtered.map((p) => {
             const fullName = `${p.first_name||''} ${p.last_name||''}`.trim() || 'Psychiatrist';
             const firstBioLine = p.bio ? p.bio.split(/\r?\n/)[0] : '';
             return (

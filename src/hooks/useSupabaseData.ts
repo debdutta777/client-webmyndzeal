@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Provider, ProviderSpecialization, Slot, Review, TransformedSlot } from '@/types/supabase';
+import { Provider, Slot, Review, TransformedSlot } from '@/types/supabase';
 
 // Provider Hook
 export const useProvider = (providerId: string) => {
@@ -16,26 +16,39 @@ export const useProvider = (providerId: string) => {
 
     const fetchProvider = async () => {
       try {
+        // Fetch provider with their degrees
         const { data, error: fetchError } = await supabase
           .from('providers')
-          .select(`
-            *,
-            provider_specializations (
-              specialization_id,
-              specializations (name)
-            )
-          `)
+          .select('*, provider_degrees(*)')
           .eq('id', providerId)
           .single();
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          console.warn('Error fetching provider:', fetchError);
+          setProvider(null);
+          return;
+        }
+
+        // Format qualifications from degrees
+        let qualifications = '';
+        if (data?.provider_degrees && Array.isArray(data.provider_degrees)) {
+          qualifications = data.provider_degrees
+            .map((degree: any) => `${degree.degree_name} - ${degree.university} (${degree.year})`)
+            .join(', ');
+        }
 
         // Transform the data to match the expected format
         const transformedProvider = {
           ...data,
-          specializations: data?.provider_specializations?.map(
-            (ps: ProviderSpecialization) => ps.specializations?.name
-          ).filter(Boolean) || []
+          // specializations is already an array in the providers table
+          full_name: `${data?.first_name || ''} ${data?.last_name || ''}`.trim(),
+          name: `${data?.first_name || ''} ${data?.last_name || ''}`.trim(),
+          years_of_experience: data?.experience_years || 0,
+          consultation_fee: data?.default_fee || 0,
+          therapy_fee: data?.default_fee || 0,
+          emergency_fee: (data?.default_fee || 0) * 1.5,
+          verified: data?.status === 'verified',
+          qualifications: qualifications // Only show degrees, no fallback to registration number
         };
 
         setProvider(transformedProvider);
@@ -89,7 +102,8 @@ export const useProviderSlots = (providerId: string, sessionType?: string) => {
           .from('slots')
           .select('*')
           .eq('provider_id', providerId)
-          .eq('status', 'available')
+          .eq('status', 'approved')  // Only approved slots
+          .eq('is_booked', false)     // Only non-booked slots
           .gte('date', new Date().toISOString().split('T')[0])
           .order('date', { ascending: true })
           .order('start_time', { ascending: true });
@@ -100,17 +114,22 @@ export const useProviderSlots = (providerId: string, sessionType?: string) => {
 
         const { data, error: fetchError } = await query;
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          // Don't throw if no slots found, just return empty array
+          console.warn('Error fetching slots:', fetchError);
+          setSlots([]);
+          return;
+        }
         
         // Transform slot data to match expected format
-        const transformedSlots = (data || []).map((slot: Slot) => ({
+        const transformedSlots = (data || []).map((slot: any) => ({
           id: slot.id,
           date: slot.date,
           time: slot.start_time,
-          duration: slot.duration_minutes || 45,
-          available: slot.status === 'available',
-          sessionType: slot.session_type,
-          fee: slot.fee || 0
+          duration: slot.duration || 45,
+          available: !slot.is_booked,
+          sessionType: slot.session_type || 'consultation',
+          fee: slot.total_fee || slot.base_fee || 0
         }));
 
         setSlots(transformedSlots);

@@ -34,12 +34,17 @@ export interface Slot {
   provider_id: string;
   date: string;
   start_time: string;
-  end_time?: string;
-  duration_minutes: number;
-  status: 'available' | 'booked' | 'blocked';
-  session_type: 'consultation' | 'therapy' | 'counselling' | 'emergency';
-  fee: number;
-  created_at: string;
+  end_time: string;
+  duration: number;
+  base_fee: number;
+  total_fee?: number;
+  languages?: string[];
+  status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'cancelled';
+  is_booked: boolean;
+  session_type: 'consultation' | 'therapy' | 'follow_up' | 'emergency' | 'regular';
+  session_mode: 'video' | 'audio' | 'in_person';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Review {

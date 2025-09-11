@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy - MyndZeal",
+  title: "Privacy Policy",
   description: "Privacy Policy for MyndZeal",
 };
 

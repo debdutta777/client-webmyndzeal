@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Cookie Policy - MyndZeal",
+  title: "Cookie Policy",
   description: "Cookie Policy for MyndZeal",
 };
 

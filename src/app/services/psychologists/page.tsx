@@ -1,52 +1,130 @@
 "use client";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Star, Award, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { supabase } from '@/lib/supabase';
 
 interface PsychologistProfile {
   id: string;
   first_name?: string;
   last_name?: string;
+  profile_image?: string;
   profile_image_url?: string;
   qualifications?: string;
+  specializations?: string[];
+  languages?: string[];
   experience_years?: number;
   rating?: number;
   bio?: string;
-  is_verified?: boolean;
-  specialties?: string[];
+  status?: string;
+  provider_type?: string;
+  default_fee?: number;
+  total_reviews?: number;
 }
 
 export default function PsychologistsServicePage() {
-  const [profiles] = useState<PsychologistProfile[]>([]);
+  const [profiles, setProfiles] = useState<PsychologistProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [minRating, setMinRating] = useState<number>(0);
   const [minExperience, setMinExperience] = useState<number>(0);
   const [specialization, setSpecialization] = useState('');
   const [language, setLanguage] = useState('');
-  const [slotPricing] = useState<Record<string, number | null>>({});
+  const [slotPricing, setSlotPricing] = useState<Record<string, number | null>>({});
+
+  useEffect(() => {
+    fetchPsychologists();
+  }, []);
+
+  const fetchPsychologists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch psychologists from providers table
+      const { data: psychologists, error: fetchError } = await supabase
+        .from('providers')
+        .select('*')
+        .eq('provider_type', 'psychologist')
+        .eq('status', 'verified')
+        .order('rating', { ascending: false });
+
+      if (fetchError) {
+        console.error('Error fetching psychologists:', fetchError);
+        setError(fetchError.message);
+        return;
+      }
+
+      // Transform data to match interface
+      const transformedProfiles = (psychologists || []).map(provider => ({
+        ...provider,
+        profile_image_url: provider.profile_image,
+        qualifications: provider.specializations?.join(', '),
+        is_verified: provider.status === 'verified'
+      }));
+
+      setProfiles(transformedProfiles);
+
+      // Fetch minimum slot pricing for each psychologist
+      if (psychologists && psychologists.length > 0) {
+        const providerIds = psychologists.map(p => p.id);
+        
+        const { data: slots, error: slotsError } = await supabase
+          .from('slots')
+          .select('provider_id, total_fee')
+          .in('provider_id', providerIds)
+          .eq('status', 'approved')
+          .eq('is_booked', false)
+          .gte('date', new Date().toISOString().split('T')[0]);
+
+        if (!slotsError && slots) {
+          const pricing: Record<string, number | null> = {};
+          providerIds.forEach(id => {
+            const providerSlots = slots.filter(s => s.provider_id === id);
+            if (providerSlots.length > 0) {
+              const minFee = Math.min(...providerSlots.map(s => s.total_fee || 0));
+              pricing[id] = minFee;
+            }
+          });
+          setSlotPricing(pricing);
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('Failed to load psychologists. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     return profiles.filter(p => {
       const name = `${p.first_name||''} ${p.last_name||''}`.toLowerCase();
-      const specText = (p.specialties||[]).join(' ').toLowerCase();
+      const specializationsText = (p.specializations || []).join(' ').toLowerCase();
       const body = p.bio?.toLowerCase() || '';
       const qual = p.qualifications?.toLowerCase() || '';
       const q = query.toLowerCase();
+      
       if (query.trim()) {
-        const matchesQuery = [name, specText, body, qual].some(f => f.includes(q));
+        const matchesQuery = [name, specializationsText, body, qual].some(f => f.includes(q));
         if (!matchesQuery) return false;
       }
+      
       if (specialization.trim()) {
         const sp = specialization.toLowerCase();
-        if (!specText.includes(sp)) return false;
+        if (!specializationsText.includes(sp) && !body.includes(sp)) return false;
       }
+      
       if (minRating > 0 && (p.rating || 0) < minRating) return false;
       if (minExperience > 0 && (p.experience_years || 0) < minExperience) return false;
+      
       if (language.trim()) {
-        const langs: string[] = [];
+        const langs = (p.languages || []).map(l => l.toLowerCase());
         if (!langs.some((l: string) => l.includes(language.toLowerCase()))) return false;
       }
+      
       return true;
     });
   }, [profiles, query, specialization, minRating, minExperience, language]);

@@ -295,106 +295,255 @@ function ProviderDetailsStep({ provider, sessionType, setSessionType, onNext }: 
       className="space-y-6"
     >
       {/* Provider Profile */}
-      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white/95 backdrop-blur-md rounded-2xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300"
+      >
         <div className="flex items-start space-x-6">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-r from-[#8BA872] to-[#73905B] flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-semibold text-2xl">{provider.name.charAt(0)}</span>
-          </div>
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="relative w-32 h-32 rounded-2xl overflow-hidden bg-gradient-to-br from-[#8BA872] to-[#73905B] flex items-center justify-center flex-shrink-0 shadow-lg"
+          >
+            {provider.image ? (
+              <img 
+                src={provider.image} 
+                alt={provider.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <span className={`text-white font-bold text-4xl ${provider.image ? 'hidden' : ''}`}>
+              {provider.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+            </span>
+          </motion.div>
           
           <div className="flex-1">
-            <div className="flex items-start justify-between mb-4">
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-start justify-between mb-4"
+            >
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">{provider.name}</h2>
-                <p className="text-lg text-gray-600">{provider.type}</p>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-[#2D3319] to-[#6B8E23] bg-clip-text text-transparent">
+                  {provider.name}
+                </h2>
+                <p className="text-lg text-gray-600 mt-1">{provider.type}</p>
                 {provider.verified && (
-                  <div className="flex items-center mt-2">
-                    <Shield className="w-5 h-5 text-blue-500" />
-                    <span className="text-sm text-blue-600 ml-1">Verified Professional</span>
-                  </div>
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.4, type: "spring" }}
+                    className="flex items-center mt-3 bg-blue-50 px-3 py-1.5 rounded-full w-fit"
+                  >
+                    <Shield className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-700 ml-1.5 font-medium">Verified Professional</span>
+                  </motion.div>
                 )}
               </div>
-              <div className="text-right">
-                <div className="flex items-center mb-1">
-                  <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="text-lg font-semibold ml-1">{provider.rating}</span>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-right bg-gradient-to-br from-yellow-50 to-orange-50 px-4 py-3 rounded-xl"
+              >
+                <div className="flex items-center mb-1 justify-end">
+                  {[...Array(5)].map((_, i) => (
+                    <Star 
+                      key={i}
+                      className={`w-5 h-5 ${i < Math.floor(provider.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                    />
+                  ))}
+                  <span className="text-xl font-bold ml-2 text-gray-800">{provider.rating}</span>
                 </div>
-                <p className="text-sm text-gray-500">({provider.reviews} reviews)</p>
-              </div>
-            </div>
+                <p className="text-sm text-gray-600 font-medium">({provider.reviews} reviews)</p>
+              </motion.div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="flex items-center">
-                <Award className="w-5 h-5 text-[#8BA872] mr-2" />
-                <span className="text-sm text-gray-600">{provider.experience} years experience</span>
-              </div>
-              <div className="flex items-center">
-                <MessageCircle className="w-5 h-5 text-[#8BA872] mr-2" />
-                <span className="text-sm text-gray-600">{provider.languages.join(', ')}</span>
-              </div>
-              <div className="flex items-center">
-                <Heart className="w-5 h-5 text-[#8BA872] mr-2" />
-                <span className="text-sm text-gray-600">{provider.reviews} satisfied clients</span>
-              </div>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
+            >
+              {[
+                { icon: Award, label: `${provider.experience} years experience`, color: 'from-emerald-400 to-green-600' },
+                { icon: MessageCircle, label: provider.languages.join(', '), color: 'from-blue-400 to-indigo-600' },
+                { icon: Heart, label: `${provider.reviews} satisfied clients`, color: 'from-pink-400 to-rose-600' }
+              ].map((item, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.6 + index * 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                  className="bg-gradient-to-br from-gray-50 to-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center">
+                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center mr-3`}>
+                      <item.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-sm text-gray-700 font-medium">{item.label}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
 
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Qualifications</h3>
-              <p className="text-gray-600">{provider.qualifications}</p>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl"
+            >
+              <h3 className="font-bold text-gray-900 mb-3 flex items-center">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full mr-2"></span>
+                Qualifications
+              </h3>
+              <p className="text-gray-700 leading-relaxed">{provider.qualifications}</p>
+            </motion.div>
 
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Specializations</h3>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.9 }}
+              className="mb-6"
+            >
+              <h3 className="font-bold text-gray-900 mb-3 flex items-center">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-[#8BA872] to-[#73905B] rounded-full mr-2"></span>
+                Specializations
+              </h3>
               <div className="flex flex-wrap gap-2">
-                {provider.specializations.map((spec: string) => (
-                  <span key={spec} className="px-3 py-1 bg-[#8BA872]/10 text-[#8BA872] text-sm rounded-full">
+                {provider.specializations.map((spec: string, index: number) => (
+                  <motion.span
+                    key={spec}
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1 + index * 0.05, type: "spring" }}
+                    whileHover={{ scale: 1.1 }}
+                    className="px-4 py-2 bg-gradient-to-r from-[#8BA872]/20 to-[#73905B]/20 text-[#466536] text-sm font-medium rounded-full border border-[#8BA872]/30 hover:border-[#8BA872] transition-all cursor-default"
+                  >
                     {spec}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
-            </div>
+            </motion.div>
 
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">About</h3>
-              <p className="text-gray-600 leading-relaxed">{provider.bio}</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.1 }}
+            >
+              <h3 className="font-bold text-gray-900 mb-3 flex items-center">
+                <span className="w-1.5 h-6 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full mr-2"></span>
+                About
+              </h3>
+              <p className="text-gray-700 leading-relaxed bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl">
+                {provider.bio}
+              </p>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Session Type Selection */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Session Type</h3>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-gray-100"
+      >
+        <h3 className="text-xl font-bold bg-gradient-to-r from-[#2D3319] to-[#6B8E23] bg-clip-text text-transparent mb-6">
+          Select Session Type
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { key: 'consultation', label: 'Consultation', desc: 'Initial assessment & diagnosis', fee: provider.fees.consultation },
-            { key: 'therapy', label: 'Therapy Session', desc: 'Treatment & regular follow-up', fee: provider.fees.therapy },
-            { key: 'emergency', label: 'Emergency', desc: 'Urgent mental health support', fee: provider.fees.emergency }
-          ].filter(type => provider.fees[type.key as keyof typeof provider.fees]).map((type) => (
-            <button
+            { key: 'consultation', label: 'Consultation', desc: 'Initial assessment & diagnosis', fee: provider.fees.consultation, icon: '🩺', gradient: 'from-blue-400 to-cyan-600' },
+            { key: 'therapy', label: 'Therapy Session', desc: 'Treatment & regular follow-up', fee: provider.fees.therapy, icon: '💭', gradient: 'from-purple-400 to-pink-600' },
+            { key: 'emergency', label: 'Emergency', desc: 'Urgent mental health support', fee: provider.fees.emergency, icon: '🚨', gradient: 'from-red-400 to-orange-600' }
+          ].filter(type => provider.fees[type.key as keyof typeof provider.fees]).map((type, index) => (
+            <motion.button
               key={type.key}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 + index * 0.1 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setSessionType(type.key as 'consultation' | 'therapy' | 'emergency')}
-              className={`p-4 rounded-lg border-2 text-left transition-all ${
+              className={`relative p-5 rounded-2xl border-2 text-left transition-all overflow-hidden ${
                 sessionType === type.key
-                  ? 'border-[#8BA872] bg-[#8BA872]/5'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-[#8BA872] bg-gradient-to-br from-[#8BA872]/10 to-[#73905B]/10 shadow-lg'
+                  : 'border-gray-200 hover:border-[#8BA872]/50 bg-white hover:shadow-md'
               }`}
             >
-              <div className="font-medium text-gray-900">{type.label}</div>
-              <div className="text-sm text-gray-600 mb-2">{type.desc}</div>
-              <div className="text-lg font-bold text-[#8BA872]">₹{type.fee}</div>
-            </button>
+              {sessionType === type.key && (
+                <motion.div
+                  layoutId="sessionSelector"
+                  className="absolute inset-0 bg-gradient-to-br from-[#8BA872]/20 to-[#73905B]/20"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-3">
+                  <span className="text-3xl">{type.icon}</span>
+                  {sessionType === type.key && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="w-6 h-6 bg-gradient-to-br from-[#8BA872] to-[#73905B] rounded-full flex items-center justify-center"
+                    >
+                      <span className="text-white text-xs">✓</span>
+                    </motion.div>
+                  )}
+                </div>
+                <div className="font-bold text-gray-900 text-lg mb-1">{type.label}</div>
+                <div className="text-sm text-gray-600 mb-3">{type.desc}</div>
+                <div className={`inline-flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r ${type.gradient}`}>
+                  <span className="text-white font-bold">₹{type.fee}</span>
+                </div>
+              </div>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="flex justify-end">
-        <button
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.8 }}
+        className="flex justify-end"
+      >
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={onNext}
-          className="px-8 py-3 bg-gradient-to-r from-[#8BA872] to-[#73905B] text-white rounded-lg font-medium hover:shadow-md transition-all"
+          className="relative px-10 py-4 bg-gradient-to-r from-[#8BA872] to-[#73905B] text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
         >
-          View Available Slots
-        </button>
-      </div>
+          <span className="relative z-10 flex items-center">
+            View Available Slots
+            <motion.span
+              animate={{ x: [0, 5, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="ml-2"
+            >
+              →
+            </motion.span>
+          </span>
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-[#73905B] to-[#8BA872]"
+            initial={{ x: '100%' }}
+            whileHover={{ x: 0 }}
+            transition={{ type: "tween", duration: 0.3 }}
+          />
+        </motion.button>
+      </motion.div>
     </motion.div>
   );
 }
