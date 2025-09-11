@@ -47,6 +47,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Explicit favicon links with cache-busting version param to override stale cached Next.js default */}
+        <link rel="icon" href="/assets/logo.jpg?v=2" />
+        <link rel="apple-touch-icon" href="/assets/logo.jpg?v=2" />
+        <meta name="theme-color" content="#8BA872" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
